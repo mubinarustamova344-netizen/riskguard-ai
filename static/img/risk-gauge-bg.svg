@@ -1,0 +1,30 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 120">
+  <defs>
+    <linearGradient id="gaugeGrad" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%"   stop-color="#10b981"/>
+      <stop offset="33%"  stop-color="#f59e0b"/>
+      <stop offset="66%"  stop-color="#ef4444"/>
+      <stop offset="100%" stop-color="#7c3aed"/>
+    </linearGradient>
+  </defs>
+  <!-- Background arc -->
+  <path d="M 15,110 A 85,85 0 0 1 185,110"
+        fill="none" stroke="#e5e7eb" stroke-width="14" stroke-linecap="round"/>
+  <!-- Coloured arc (gradient) -->
+  <path d="M 15,110 A 85,85 0 0 1 185,110"
+        fill="none" stroke="url(#gaugeGrad)" stroke-width="14" stroke-linecap="round" opacity="0.25"/>
+  <!-- Tick marks -->
+  <g stroke="#9ca3af" stroke-width="1.5">
+    <line x1="15"  y1="110" x2="22"  y2="110"/>
+    <line x1="35"  y1="43"  x2="40"  y2="50"/>
+    <line x1="100" y1="25"  x2="100" y2="33"/>
+    <line x1="165" y1="43"  x2="160" y2="50"/>
+    <line x1="185" y1="110" x2="178" y2="110"/>
+  </g>
+  <!-- Labels -->
+  <text x="8"   y="125" font-size="8" fill="#9ca3af" font-family="sans-serif">0</text>
+  <text x="28"  y="40"  font-size="8" fill="#10b981" font-family="sans-serif">Low</text>
+  <text x="82"  y="20"  font-size="8" fill="#f59e0b" font-family="sans-serif">Mid</text>
+  <text x="148" y="40"  font-size="8" fill="#ef4444" font-family="sans-serif">High</text>
+  <text x="174" y="125" font-size="8" fill="#9ca3af" font-family="sans-serif">100</text>
+</svg>

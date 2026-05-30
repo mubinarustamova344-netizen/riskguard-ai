@@ -1,0 +1,243 @@
+{% extends "base.html" %}
+{% block title %}Assessment History – RiskGuard AI{% endblock %}
+
+{% block content %}
+<div class="container py-5">
+
+  <div class="rg-page-header d-flex align-items-start justify-content-between flex-wrap gap-3">
+    <div>
+      <h2><i class="bi bi-clock-history text-primary me-2"></i>Assessment History</h2>
+      <p>All previously submitted risk assessments</p>
+    </div>
+    <div class="d-flex gap-2 flex-wrap">
+      <a href="/api/export-csv{% if cat_filter %}?category={{ cat_filter }}{% endif %}"
+         class="btn btn-sm btn-outline-success"
+         onclick="showToast('Downloading CSV…','info',2000)">
+        <i class="bi bi-file-earmark-spreadsheet me-1"></i>Export CSV
+      </a>
+      <a href="/assessment" class="btn btn-sm btn-warning fw-bold">
+        <i class="bi bi-plus-circle me-1"></i>New Assessment
+      </a>
+    </div>
+  </div>
+
+  <!-- Search & Filter Bar -->
+  <div class="card shadow-sm mb-4">
+    <div class="card-body py-3">
+      <div class="row g-3 align-items-center">
+        <div class="col-md-5">
+          <div class="input-group">
+            <span class="input-group-text bg-transparent border-end-0">
+              <i class="bi bi-search text-muted"></i>
+            </span>
+            <input type="text" class="form-control border-start-0" id="searchInput"
+                   placeholder="Search vehicle type, location, gender…"
+                   oninput="filterTable()">
+          </div>
+        </div>
+        <div class="col-md-7">
+          <div class="filter-group">
+            <span class="small text-muted me-1">Filter:</span>
+            <a href="/history"
+               class="filter-btn {{ 'active-all' if not cat_filter else '' }}">All</a>
+            <a href="/history?category=Low"
+               class="filter-btn {{ 'active-low' if cat_filter=='Low' else '' }}">
+              <span style="color:var(--low);">●</span> Low</a>
+            <a href="/history?category=Medium"
+               class="filter-btn {{ 'active-med' if cat_filter=='Medium' else '' }}">
+              <span style="color:var(--medium);">●</span> Medium</a>
+            <a href="/history?category=High"
+               class="filter-btn {{ 'active-high' if cat_filter=='High' else '' }}">
+              <span style="color:var(--high);">●</span> High</a>
+            <a href="/history?category=Very+High"
+               class="filter-btn {{ 'active-vh' if cat_filter=='Very High' else '' }}">
+              <span style="color:var(--veryhigh);">●</span> Very High</a>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  {% if assessments %}
+  <!-- Summary stats strip -->
+  <div class="row g-3 mb-4 text-center">
+    <div class="col-6 col-md-3">
+      <div class="kpi-box">
+        <div class="kpi-box-val text-primary">{{ pagination.total }}</div>
+        <div class="kpi-box-lbl">Total Records</div>
+      </div>
+    </div>
+    <div class="col-6 col-md-3">
+      <div class="kpi-box">
+        <div class="kpi-box-val text-success">
+          {% set avg = (assessments | sum(attribute='risk_score')) / (assessments | length) %}
+          {{ "%.1f"|format(avg) }}
+        </div>
+        <div class="kpi-box-lbl">Avg Score (Page)</div>
+      </div>
+    </div>
+    <div class="col-6 col-md-3">
+      <div class="kpi-box">
+        <div class="kpi-box-val text-warning">
+          {{ (assessments | max(attribute='risk_score')).risk_score }}
+        </div>
+        <div class="kpi-box-lbl">Highest Score</div>
+      </div>
+    </div>
+    <div class="col-6 col-md-3">
+      <div class="kpi-box">
+        <div class="kpi-box-val text-info">
+          {{ (assessments | min(attribute='risk_score')).risk_score }}
+        </div>
+        <div class="kpi-box-lbl">Lowest Score</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card shadow-sm">
+    <div class="card-body p-0">
+      <div class="table-responsive">
+        <table class="table table-hover align-middle mb-0" id="historyTable">
+          <thead class="table-dark">
+            <tr>
+              <th class="sortable" onclick="sortTable(0)">#</th>
+              <th class="sortable" onclick="sortTable(1)">Date</th>
+              <th class="sortable" onclick="sortTable(2)">Age</th>
+              <th>Vehicle</th>
+              <th>Location</th>
+              <th class="sortable" onclick="sortTable(5)">Accidents</th>
+              <th class="sortable" onclick="sortTable(6)">Risk Score</th>
+              <th>Category</th>
+              <th class="sortable" onclick="sortTable(8)">Premium ×</th>
+              <th>Claim Prob.</th>
+              <th></th>
+            </tr>
+          </thead>
+          <tbody id="historyTbody">
+            {% for a in assessments %}
+            <tr class="history-row" data-search="{{ a.vehicle_type }} {{ a.primary_location }} {{ a.gender }} {{ a.marital_status }}">
+              <td class="text-muted small">{{ a.id }}</td>
+              <td class="small">{{ a.created_at.strftime('%d %b %y %H:%M') }}</td>
+              <td>{{ a.driver_age }}y<span class="text-muted small">/{{ a.driving_experience }}y exp</span></td>
+              <td class="text-capitalize">{{ a.vehicle_type }}</td>
+              <td class="text-capitalize">{{ a.primary_location }}</td>
+              <td>
+                <span class="badge {{ 'bg-success' if a.previous_accidents == 0 else 'bg-danger' }}">
+                  {{ a.previous_accidents }}
+                </span>
+              </td>
+              <td>
+                <div class="d-flex align-items-center gap-2">
+                  <div class="progress" style="height:6px;width:65px;min-width:65px;">
+                    <div class="progress-bar
+                      {% if a.risk_score < 26 %}bg-success
+                      {% elif a.risk_score < 51 %}bg-warning
+                      {% elif a.risk_score < 76 %}bg-danger
+                      {% else %}bg-danger{% endif %}"
+                      style="width:{{ a.risk_score }}%"></div>
+                  </div>
+                  <span class="fw-semibold small">{{ a.risk_score }}</span>
+                </div>
+              </td>
+              <td>
+                <span class="badge rg-badge-{{ a.risk_category | lower | replace(' ', '-') }}">
+                  {{ a.risk_category }}
+                </span>
+              </td>
+              <td class="fw-semibold">{{ a.premium_multiplier }}×</td>
+              <td>{{ "%.1f"|format(a.claim_probability * 100) }}%</td>
+              <td>
+                <a href="/report/{{ a.id }}" class="btn btn-sm btn-outline-primary">
+                  <i class="bi bi-file-earmark-text"></i>
+                </a>
+              </td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- No search results message -->
+  <div class="text-center py-4 d-none" id="noResults">
+    <i class="bi bi-search fs-2 text-muted d-block mb-2"></i>
+    <p class="text-muted">No matching records found.</p>
+  </div>
+
+  <!-- Pagination -->
+  {% if pagination.pages > 1 %}
+  <nav class="mt-4">
+    <ul class="pagination justify-content-center">
+      {% if pagination.has_prev %}
+      <li class="page-item">
+        <a class="page-link" href="?page={{ pagination.prev_num }}{% if cat_filter %}&category={{ cat_filter }}{% endif %}">
+          <i class="bi bi-chevron-left"></i>
+        </a>
+      </li>
+      {% endif %}
+      {% for p in pagination.iter_pages(left_edge=2, right_edge=2, left_current=2, right_current=2) %}
+        {% if p %}
+          <li class="page-item {{ 'active' if p == pagination.page else '' }}">
+            <a class="page-link" href="?page={{ p }}{% if cat_filter %}&category={{ cat_filter }}{% endif %}">{{ p }}</a>
+          </li>
+        {% else %}
+          <li class="page-item disabled"><span class="page-link">…</span></li>
+        {% endif %}
+      {% endfor %}
+      {% if pagination.has_next %}
+      <li class="page-item">
+        <a class="page-link" href="?page={{ pagination.next_num }}{% if cat_filter %}&category={{ cat_filter }}{% endif %}">
+          <i class="bi bi-chevron-right"></i>
+        </a>
+      </li>
+      {% endif %}
+    </ul>
+  </nav>
+  {% endif %}
+
+  {% else %}
+  <div class="text-center py-5">
+    <i class="bi bi-inbox fs-1 text-muted d-block mb-3"></i>
+    <h5 class="text-muted">No assessments yet</h5>
+    <p class="text-muted">Complete a risk assessment to see results here.</p>
+    <a href="/assessment" class="btn btn-primary mt-2">
+      <i class="bi bi-clipboard-data me-2"></i>Start Assessment
+    </a>
+  </div>
+  {% endif %}
+
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+function filterTable() {
+  const q = document.getElementById('searchInput').value.toLowerCase();
+  const rows = document.querySelectorAll('.history-row');
+  let visible = 0;
+  rows.forEach(row => {
+    const text = (row.dataset.search || '') + row.textContent.toLowerCase();
+    const show = text.includes(q);
+    row.style.display = show ? '' : 'none';
+    if (show) visible++;
+  });
+  document.getElementById('noResults').classList.toggle('d-none', visible > 0);
+}
+
+let sortAsc = {};
+function sortTable(colIdx) {
+  const tbody = document.getElementById('historyTbody');
+  const rows  = Array.from(tbody.querySelectorAll('tr'));
+  sortAsc[colIdx] = !sortAsc[colIdx];
+  rows.sort((a, b) => {
+    const ta = a.cells[colIdx]?.textContent.trim() || '';
+    const tb = b.cells[colIdx]?.textContent.trim() || '';
+    const na = parseFloat(ta); const nb = parseFloat(tb);
+    const cmp = isNaN(na) ? ta.localeCompare(tb) : na - nb;
+    return sortAsc[colIdx] ? cmp : -cmp;
+  });
+  rows.forEach(r => tbody.appendChild(r));
+}
+</script>
+{% endblock %}

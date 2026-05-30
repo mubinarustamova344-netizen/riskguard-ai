@@ -1,0 +1,101 @@
+{% extends "base.html" %}
+{% block title %}AI Chatbot – RiskGuard AI{% endblock %}
+
+{% block content %}
+<div class="container py-5">
+  <div class="row justify-content-center">
+    <div class="col-lg-8">
+
+      <div class="chatbot-container shadow-lg">
+
+        <!-- Chatbot Header -->
+        <div class="chatbot-header d-flex align-items-center gap-3">
+          <div class="chatbot-avatar">
+            <i class="bi bi-robot fs-3"></i>
+          </div>
+          <div>
+            <h5 class="mb-0 fw-bold">RiskBot</h5>
+            <span class="small opacity-75"><i class="bi bi-circle-fill text-success me-1" style="font-size:.55rem;"></i>Online – AI Insurance Assistant</span>
+          </div>
+          <div class="ms-auto d-flex gap-2">
+            <button class="btn btn-outline-light btn-sm" onclick="resetChat()" title="Clear conversation">
+              <i class="bi bi-trash"></i>
+            </button>
+            <a href="/assessment" class="btn btn-warning btn-sm">
+              <i class="bi bi-clipboard-data me-1"></i>Assessment
+            </a>
+          </div>
+        </div>
+
+        <!-- Chat Window -->
+        <div class="chatbot-messages" id="chatMessages">
+          <!-- Welcome bubble -->
+          <div class="chat-bubble-wrap bot">
+            <div class="bot-avatar-sm"><i class="bi bi-robot"></i></div>
+            <div class="chat-bubble bot-bubble">
+              <p class="mb-2">Hello! I'm <strong>RiskBot</strong>, your AI insurance risk assistant. 👋</p>
+              <p class="mb-2">I can help you with:</p>
+              <ul class="mb-2 ps-3">
+                <li>Understanding your insurance risk score</li>
+                <li>Premium factors and how they're calculated</li>
+                <li>Safe driving tips to reduce your premium</li>
+                <li>Coverage options and policy types</li>
+                <li>Young driver advice and no-claims bonus</li>
+              </ul>
+              <p class="mb-0">What would you like to know?</p>
+            </div>
+          </div>
+
+          <!-- Quick reply chips -->
+          <div class="quick-replies" id="quickReplies">
+            <button class="quick-chip" onclick="sendQuick('What affects my premium?')">What affects my premium?</button>
+            <button class="quick-chip" onclick="sendQuick('How can I reduce my risk?')">Reduce my risk</button>
+            <button class="quick-chip" onclick="sendQuick('Tell me about coverage options')">Coverage options</button>
+            <button class="quick-chip" onclick="sendQuick('Young driver advice')">Young driver advice</button>
+            <button class="quick-chip" onclick="sendQuick('How does the AI model work?')">How does the AI work?</button>
+            <button class="quick-chip" onclick="sendQuick('What is telematics insurance?')">Telematics insurance</button>
+          </div>
+        </div>
+
+        <!-- Input Area -->
+        <div class="chatbot-input">
+          <div class="input-group">
+            <input type="text" class="form-control" id="chatInput"
+                   placeholder="Type your question here…"
+                   onkeydown="if(event.key==='Enter') sendMessage()">
+            <button class="btn btn-primary px-4" onclick="sendMessage()" id="sendBtn">
+              <i class="bi bi-send-fill"></i>
+            </button>
+          </div>
+          <div class="chat-hint mt-2 text-muted small text-center">
+            Press <kbd>Enter</kbd> to send &nbsp;·&nbsp; Try asking about premiums, risk factors, or safe driving tips
+          </div>
+        </div>
+
+      </div>
+
+      <!-- Info Cards Below Chat -->
+      <div class="row g-3 mt-4">
+        {% for item in [
+          ('bi-lightning-charge-fill','text-warning','Instant Answers','Response in under a second'),
+          ('bi-shield-check-fill','text-success','Expert Knowledge','19 insurance domain intents'),
+          ('bi-arrow-repeat','text-primary','Context Aware','Tracks your full conversation'),
+        ] %}
+        <div class="col-md-4">
+          <div class="kpi-box text-center py-3">
+            <i class="bi {{ item[0] }} {{ item[1] }} fs-3 d-block mb-2"></i>
+            <div class="fw-semibold small">{{ item[2] }}</div>
+            <div class="kpi-box-lbl mt-1">{{ item[3] }}</div>
+          </div>
+        </div>
+        {% endfor %}
+      </div>
+
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="{{ url_for('static', filename='js/chatbot.js') }}"></script>
+{% endblock %}

@@ -1,0 +1,312 @@
+{% extends "base.html" %}
+{% block title %}Risk Comparison Tool – RiskGuard AI{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4 px-4">
+
+  <div class="rg-page-header d-flex align-items-start justify-content-between flex-wrap gap-2">
+    <div>
+      <h2><i class="bi bi-arrow-left-right text-success me-2"></i>Risk Comparison Tool</h2>
+      <p>Compare two driver profiles side-by-side to identify the higher-risk driver.</p>
+    </div>
+    <a href="/assessment" class="btn btn-warning btn-sm fw-bold">
+      <i class="bi bi-plus-circle me-1"></i>New Assessment
+    </a>
+  </div>
+
+  <div class="row g-4">
+
+    <!-- Profile A -->
+    <div class="col-lg-5">
+      <div class="card shadow-sm">
+        <div class="rg-card-header-a d-flex align-items-center gap-2">
+          <i class="bi bi-person-circle"></i>Driver Profile A
+          <span class="badge ms-auto" style="background:rgba(255,255,255,.2);font-size:.72rem;">Blue Team</span>
+        </div>
+        <div class="card-body" id="formA"></div>
+      </div>
+    </div>
+
+    <!-- VS button -->
+    <div class="col-lg-2 d-flex flex-column align-items-center justify-content-center gap-3">
+      <div class="vs-badge">VS</div>
+      <button class="btn btn-success btn-lg fw-bold w-100" id="compareBtn" onclick="runComparison()">
+        <i class="bi bi-play-fill me-1"></i>Compare
+      </button>
+      <button class="btn btn-outline-secondary btn-sm w-100" onclick="resetForms()">
+        <i class="bi bi-arrow-clockwise me-1"></i>Reset
+      </button>
+    </div>
+
+    <!-- Profile B -->
+    <div class="col-lg-5">
+      <div class="card shadow-sm">
+        <div class="rg-card-header-b d-flex align-items-center gap-2">
+          <i class="bi bi-person-circle"></i>Driver Profile B
+          <span class="badge ms-auto" style="background:rgba(255,255,255,.2);font-size:.72rem;">Red Team</span>
+        </div>
+        <div class="card-body" id="formB"></div>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- Results -->
+  <div id="compareResults" class="mt-5 d-none">
+    <h4 class="fw-bold mb-4 text-center"><i class="bi bi-bar-chart-line me-2"></i>Comparison Results</h4>
+
+    <!-- Score cards -->
+    <div class="row g-4 mb-4 justify-content-center">
+      <div class="col-md-4 text-center">
+        <div class="compare-result-card border-primary" id="resultCardA">
+          <div class="small fw-bold text-primary mb-1">DRIVER A</div>
+          <div class="display-4 fw-bold" id="scoreA">–</div>
+          <div class="small text-muted mb-2">/100 Risk Score</div>
+          <div class="badge fs-6 px-3 py-2" id="catBadgeA">–</div>
+          <div class="mt-2 fw-semibold" id="premiumA">–</div>
+        </div>
+      </div>
+      <div class="col-md-2 d-flex align-items-center justify-content-center">
+        <div class="text-center">
+          <div class="fs-1 fw-bold text-muted" id="winnerArrow">↔</div>
+          <div class="small text-muted" id="winnerText">–</div>
+        </div>
+      </div>
+      <div class="col-md-4 text-center">
+        <div class="compare-result-card border-danger" id="resultCardB">
+          <div class="small fw-bold text-danger mb-1">DRIVER B</div>
+          <div class="display-4 fw-bold" id="scoreB">–</div>
+          <div class="small text-muted mb-2">/100 Risk Score</div>
+          <div class="badge fs-6 px-3 py-2" id="catBadgeB">–</div>
+          <div class="mt-2 fw-semibold" id="premiumB">–</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Comparison chart -->
+    <div class="row g-4 mb-4">
+      <div class="col-lg-7">
+        <div class="card shadow-sm">
+          <div class="card-header rg-card-header"><i class="bi bi-bar-chart me-2"></i>Head-to-Head Risk Factors</div>
+          <div class="card-body"><canvas id="compareChart" height="300"></canvas></div>
+        </div>
+      </div>
+      <div class="col-lg-5">
+        <div class="card shadow-sm h-100">
+          <div class="card-header rg-card-header"><i class="bi bi-list-check me-2"></i>Factor Comparison</div>
+          <div class="card-body p-0">
+            <table class="table table-sm table-hover mb-0" id="compareTable">
+              <thead class="table-dark">
+                <tr><th>Factor</th><th class="text-primary">A</th><th class="text-danger">B</th><th>Winner</th></tr>
+              </thead>
+              <tbody></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Class probabilities -->
+    <div class="row g-4">
+      <div class="col-md-6">
+        <div class="card shadow-sm">
+          <div class="card-header rg-card-header text-primary" style="background:#0d1b2a;">
+            <i class="bi bi-pie-chart me-2"></i>Driver A – Class Probabilities
+          </div>
+          <div class="card-body"><canvas id="probChartA" height="200"></canvas></div>
+        </div>
+      </div>
+      <div class="col-md-6">
+        <div class="card shadow-sm">
+          <div class="card-header rg-card-header text-danger" style="background:#0d1b2a;">
+            <i class="bi bi-pie-chart me-2"></i>Driver B – Class Probabilities
+          </div>
+          <div class="card-body"><canvas id="probChartB" height="200"></canvas></div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+// Build identical forms for A and B
+const FIELDS = [
+  {id:'age',    label:'Age',               type:'number', min:18, max:80, val:35},
+  {id:'exp',    label:'Experience (yrs)',   type:'number', min:0, max:60, val:10},
+  {id:'gender', label:'Gender',             type:'select', opts:[['male','Male'],['female','Female']], val:'male'},
+  {id:'marital',label:'Marital Status',     type:'select', opts:[['single','Single'],['married','Married'],['divorced','Divorced']], val:'married'},
+  {id:'credit', label:'Credit Score',       type:'number', min:300, max:850, val:700},
+  {id:'vtype',  label:'Vehicle Type',       type:'select', opts:[['sedan','Sedan'],['suv','SUV'],['sports','Sports'],['truck','Truck'],['van','Van'],['motorcycle','Motorcycle']], val:'sedan'},
+  {id:'vage',   label:'Vehicle Age (yrs)',  type:'number', min:0, max:25, val:4},
+  {id:'mileage',label:'Annual Mileage',     type:'number', min:3000, max:55000, val:12000},
+  {id:'loc',    label:'Location',           type:'select', opts:[['urban','Urban'],['suburban','Suburban'],['rural','Rural'],['highway','Highway']], val:'suburban'},
+  {id:'acc',    label:'Prev. Accidents',    type:'select', opts:[['0','0'],['1','1'],['2','2'],['3','3'],['4','4+']], val:'0'},
+  {id:'viol',   label:'Violations',         type:'select', opts:[['0','0'],['1','1'],['2','2'],['3','3'],['5','5+']], val:'0'},
+  {id:'night',  label:'Night Driving %',    type:'range',  min:0, max:100, val:20},
+];
+
+function buildForm(prefix) {
+  return FIELDS.map(f => {
+    const fid = `${prefix}_${f.id}`;
+    let input = '';
+    if (f.type === 'number') {
+      input = `<input type="number" class="form-control form-control-sm" id="${fid}"
+                min="${f.min}" max="${f.max}" value="${f.val}" required>`;
+    } else if (f.type === 'select') {
+      const opts = f.opts.map(([v,l]) => `<option value="${v}"${v===f.val?' selected':''}>${l}</option>`).join('');
+      input = `<select class="form-select form-select-sm" id="${fid}" required>${opts}</select>`;
+    } else if (f.type === 'range') {
+      input = `<div class="d-flex gap-2 align-items-center">
+        <input type="range" class="form-range flex-grow-1" id="${fid}" min="0" max="100" value="${f.val}"
+               oninput="document.getElementById('${fid}_v').textContent=this.value+'%'">
+        <span id="${fid}_v" class="badge bg-secondary">${f.val}%</span></div>`;
+    }
+    return `<div class="mb-2"><label class="form-label small fw-semibold mb-1">${f.label}</label>${input}</div>`;
+  }).join('');
+}
+
+document.getElementById('formA').innerHTML = buildForm('a');
+document.getElementById('formB').innerHTML = buildForm('b');
+
+function getProfile(prefix) {
+  const g = id => document.getElementById(`${prefix}_${id}`);
+  return {
+    driver_age: +g('age').value, driving_experience: +g('exp').value,
+    gender: g('gender').value, marital_status: g('marital').value,
+    credit_score: +g('credit').value, vehicle_type: g('vtype').value,
+    vehicle_age: +g('vage').value, annual_mileage: +g('mileage').value,
+    primary_location: g('loc').value, previous_accidents: +g('acc').value,
+    traffic_violations: +g('viol').value, night_driving_pct: +g('night').value,
+  };
+}
+
+const RISK_COLORS = {'Low':'#198754','Medium':'#fd7e14','High':'#e05a00','Very High':'#dc3545'};
+const BADGE_CLS   = {'Low':'bg-success','Medium':'bg-warning text-dark','High':'bg-danger','Very High':'bg-danger'};
+let cmpChart, probA, probB;
+
+async function runComparison() {
+  const btn = document.getElementById('compareBtn');
+  btn.disabled = true;
+  btn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>Comparing…';
+
+  try {
+    const resp = await fetch('/api/compare', {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({profile_a: getProfile('a'), profile_b: getProfile('b')})
+    });
+    const data = await resp.json();
+    if (data.error) { alert(data.error); return; }
+    renderComparison(data.profile_a, data.profile_b);
+  } finally {
+    btn.disabled = false;
+    btn.innerHTML = '<i class="bi bi-play-fill me-1"></i>Compare';
+  }
+}
+
+function renderComparison(a, b) {
+  document.getElementById('compareResults').classList.remove('d-none');
+  window.scrollTo({top: document.getElementById('compareResults').offsetTop - 80, behavior:'smooth'});
+
+  // Score cards
+  [['A',a,'primary'],['B',b,'danger']].forEach(([ltr, d, col]) => {
+    document.getElementById(`score${ltr}`).textContent = d.risk_score;
+    const badge = document.getElementById(`catBadge${ltr}`);
+    badge.className = 'badge fs-6 px-3 py-2 ' + BADGE_CLS[d.risk_category];
+    badge.textContent = d.risk_category + ' Risk';
+    document.getElementById(`premium${ltr}`).textContent = `Premium: ${d.premium_multiplier}× base`;
+  });
+
+  // Winner
+  const arrow = document.getElementById('winnerArrow');
+  const wtxt  = document.getElementById('winnerText');
+  if (a.risk_score < b.risk_score) {
+    arrow.textContent = '←'; arrow.className = 'fs-1 fw-bold text-success';
+    wtxt.textContent = 'Driver A is lower risk';
+  } else if (b.risk_score < a.risk_score) {
+    arrow.textContent = '→'; arrow.className = 'fs-1 fw-bold text-danger';
+    wtxt.textContent = 'Driver B is lower risk';
+  } else {
+    arrow.textContent = '↔'; arrow.className = 'fs-1 fw-bold text-muted';
+    wtxt.textContent = 'Equal risk';
+  }
+
+  // Factor comparison chart
+  const labels = ['Risk Score','Claim Prob %','Premium ×10'];
+  const dataA  = [a.risk_score, +(a.claim_probability*100).toFixed(1), a.premium_multiplier*10];
+  const dataB  = [b.risk_score, +(b.claim_probability*100).toFixed(1), b.premium_multiplier*10];
+  if (cmpChart) cmpChart.destroy();
+  cmpChart = new Chart(document.getElementById('compareChart'), {
+    type:'bar',
+    data:{
+      labels,
+      datasets:[
+        {label:'Driver A', data:dataA, backgroundColor:'rgba(13,110,253,.75)', borderRadius:6},
+        {label:'Driver B', data:dataB, backgroundColor:'rgba(220,53,69,.75)', borderRadius:6},
+      ]
+    },
+    options:{responsive:true,plugins:{legend:{position:'top'}},
+             scales:{y:{beginAtZero:true,max:100}}}
+  });
+
+  // Factor table
+  const pA = getProfile('a'), pB = getProfile('b');
+  const rows = [
+    ['Driver Age', pA.driver_age, pB.driver_age, (x)=>x, true],
+    ['Experience (yrs)', pA.driving_experience, pB.driving_experience, (x)=>x, false],
+    ['Prev. Accidents', pA.previous_accidents, pB.previous_accidents, (x)=>x, true],
+    ['Violations', pA.traffic_violations, pB.traffic_violations, (x)=>x, true],
+    ['Annual Mileage', pA.annual_mileage.toLocaleString(), pB.annual_mileage.toLocaleString(), null, true],
+    ['Night Driving %', pA.night_driving_pct+'%', pB.night_driving_pct+'%', null, true],
+    ['Credit Score', pA.credit_score, pB.credit_score, (x)=>x, false],
+  ];
+  const tbody = document.querySelector('#compareTable tbody');
+  tbody.innerHTML = rows.map(([lbl, va, vb, fn, lowBetter]) => {
+    let winner = '–';
+    if (fn) {
+      const na = typeof va === 'string' ? parseFloat(va) : va;
+      const nb = typeof vb === 'string' ? parseFloat(vb) : vb;
+      if (lowBetter) winner = na < nb ? '<span class="text-primary fw-bold">A</span>' : na > nb ? '<span class="text-danger fw-bold">B</span>' : '=';
+      else           winner = na > nb ? '<span class="text-primary fw-bold">A</span>' : na < nb ? '<span class="text-danger fw-bold">B</span>' : '=';
+    }
+    return `<tr><td class="small">${lbl}</td><td class="text-primary fw-semibold">${va}</td><td class="text-danger fw-semibold">${vb}</td><td>${winner}</td></tr>`;
+  }).join('');
+
+  // Probability doughnut charts
+  drawProbChart('probChartA', probA, a.class_probabilities, 'A');
+  drawProbChart('probChartB', probB, b.class_probabilities, 'B');
+}
+
+function drawProbChart(canvasId, existingChart, probs, label) {
+  if (existingChart) existingChart.destroy();
+  const labels = Object.keys(probs);
+  const data   = labels.map(l => +(probs[l]*100).toFixed(1));
+  const colors = labels.map(l => RISK_COLORS[l] || '#888');
+  const ch = new Chart(document.getElementById(canvasId), {
+    type:'doughnut',
+    data:{labels, datasets:[{data, backgroundColor:colors, borderWidth:3, borderColor:'#fff', hoverOffset:6}]},
+    options:{responsive:true, plugins:{legend:{position:'bottom',labels:{font:{size:12}}},
+      tooltip:{callbacks:{label:c=>` ${c.label}: ${c.parsed}%`}}}, cutout:'60%'}
+  });
+  if (label === 'A') probA = ch; else probB = ch;
+}
+
+function resetForms() {
+  ['a','b'].forEach(prefix => {
+    FIELDS.forEach(f => {
+      const el = document.getElementById(`${prefix}_${f.id}`);
+      if (el) {
+        el.value = f.val;
+        if (f.type === 'range') {
+          const span = document.getElementById(`${prefix}_${f.id}_v`);
+          if (span) span.textContent = f.val + '%';
+        }
+      }
+    });
+  });
+  document.getElementById('compareResults').classList.add('d-none');
+}
+</script>
+{% endblock %}

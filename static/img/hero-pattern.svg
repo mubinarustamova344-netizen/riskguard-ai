@@ -1,0 +1,31 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1440" height="600" viewBox="0 0 1440 600">
+  <defs>
+    <linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#0d1b2a"/>
+      <stop offset="50%" style="stop-color:#1b2d45"/>
+      <stop offset="100%" style="stop-color:#0a2540"/>
+    </linearGradient>
+  </defs>
+  <rect width="1440" height="600" fill="url(#bg)"/>
+  <!-- Grid lines -->
+  <g stroke="rgba(240,165,0,0.06)" stroke-width="1">
+    <line x1="0" y1="100" x2="1440" y2="100"/>
+    <line x1="0" y1="200" x2="1440" y2="200"/>
+    <line x1="0" y1="300" x2="1440" y2="300"/>
+    <line x1="0" y1="400" x2="1440" y2="400"/>
+    <line x1="0" y1="500" x2="1440" y2="500"/>
+    <line x1="200" y1="0" x2="200" y2="600"/>
+    <line x1="400" y1="0" x2="400" y2="600"/>
+    <line x1="600" y1="0" x2="600" y2="600"/>
+    <line x1="800" y1="0" x2="800" y2="600"/>
+    <line x1="1000" y1="0" x2="1000" y2="600"/>
+    <line x1="1200" y1="0" x2="1200" y2="600"/>
+  </g>
+  <!-- Decorative circles -->
+  <circle cx="1200" cy="100" r="180" fill="rgba(240,165,0,0.04)"/>
+  <circle cx="1200" cy="100" r="120" fill="rgba(240,165,0,0.05)"/>
+  <circle cx="100" cy="500" r="150" fill="rgba(74,144,217,0.04)"/>
+  <!-- Bottom wave -->
+  <path d="M0 520 Q360 480 720 510 Q1080 540 1440 500 L1440 600 L0 600 Z"
+        fill="rgba(0,0,0,0.2)"/>
+</svg>

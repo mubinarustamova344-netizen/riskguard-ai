@@ -1,0 +1,246 @@
+{% extends "base.html" %}
+{% block title %}About – RiskGuard AI{% endblock %}
+
+{% block content %}
+<div class="container py-5">
+
+  <!-- Hero banner -->
+  <div class="rounded-4 mb-5 p-5 text-white position-relative overflow-hidden"
+       style="background:linear-gradient(135deg,var(--navy) 0%,#1b3a5c 100%);">
+    <div class="position-relative" style="z-index:1;">
+      <span class="badge mb-3 px-3 py-2" style="background:rgba(240,165,0,.2);color:var(--accent);font-size:.82rem;">
+        <i class="bi bi-mortarboard-fill me-1"></i>Pearson BTEC Level 6 – Unit 2: Independent Project
+      </span>
+      <h1 class="fw-bold display-5 mb-3">
+        Risk Assessment Model for<br>
+        <span style="color:var(--accent);">Road Accidents</span> in Insurance Companies
+      </h1>
+      <p class="lead opacity-75 mb-4" style="max-width:680px;">
+        A machine-learning–powered web platform for underwriting risk evaluation,
+        built as a capstone project demonstrating end-to-end ML engineering, data analysis,
+        and professional software development.
+      </p>
+      <div class="d-flex gap-3 flex-wrap">
+        <a href="/assessment" class="btn btn-warning fw-bold px-4">
+          <i class="bi bi-play-circle me-2"></i>Try the System
+        </a>
+        <a href="/dashboard" class="btn btn-outline-light px-4">
+          <i class="bi bi-bar-chart-line me-2"></i>View Analytics
+        </a>
+      </div>
+    </div>
+    <!-- Decorative element -->
+    <div class="position-absolute top-0 end-0 opacity-10" style="font-size:12rem;line-height:1;margin-top:-20px;margin-right:-20px;pointer-events:none;">
+      <i class="bi bi-shield-check"></i>
+    </div>
+  </div>
+
+  <!-- Project overview -->
+  <div class="row g-5 mb-5">
+    <div class="col-lg-7">
+      <h3 class="fw-bold mb-4"><i class="bi bi-file-text me-2 text-primary"></i>Project Overview</h3>
+
+      <p>
+        <strong>RiskGuard AI</strong> is a practice-based capstone project for the
+        <em>Pearson BTEC Level 6 Diploma in Digital Technologies (Unit 2: Independent Project)</em>.
+        It addresses the industry challenge of accurate, data-driven risk stratification in motor
+        insurance underwriting.
+      </p>
+      <p>
+        The project follows the full ML lifecycle: problem identification → data generation →
+        feature engineering → model training and evaluation → production deployment as a Flask web
+        application with an interactive UI and REST API.
+      </p>
+      <p>
+        Four classification algorithms were trained, cross-validated, and compared.
+        The best model (Gradient Boosting, ~86% test accuracy) is served in real-time,
+        with full explainability through factor contribution charts and personalised recommendations.
+      </p>
+
+      <h5 class="fw-bold mt-4 mb-3">Research Aims &amp; Objectives</h5>
+      <ul class="list-unstyled">
+        {% for obj in [
+          ('bi-check2-circle text-success','Develop an ML model that classifies driver risk into 4 categories with ≥80% accuracy'),
+          ('bi-check2-circle text-success','Compare multiple classification algorithms to identify the optimal approach'),
+          ('bi-check2-circle text-success','Build a full-stack web application for real-time risk assessment and visualisation'),
+          ('bi-check2-circle text-success','Provide interpretable, explainable predictions through factor contribution analysis'),
+          ('bi-check2-circle text-success','Design a professional UI suitable for insurance underwriting professionals'),
+        ] %}
+        <li class="d-flex gap-2 mb-2">
+          <i class="bi {{ obj[0] }} mt-1 flex-shrink-0"></i>
+          <span>{{ obj[1] }}</span>
+        </li>
+        {% endfor %}
+      </ul>
+    </div>
+
+    <div class="col-lg-5">
+      <!-- Project info card -->
+      <div class="card shadow-sm mb-4">
+        <div class="card-header rg-card-header">
+          <i class="bi bi-info-circle me-2"></i>Project Information
+        </div>
+        <div class="card-body">
+          <table class="table table-sm table-borderless mb-0">
+            <tr><td class="text-muted fw-semibold" style="width:45%;">Programme</td>
+                <td>BTEC Level 6 Digital Technologies</td></tr>
+            <tr><td class="text-muted fw-semibold">Unit</td>
+                <td>Unit 2: Independent Project</td></tr>
+            <tr><td class="text-muted fw-semibold">Type</td>
+                <td>Capstone (Practice-Based)</td></tr>
+            <tr><td class="text-muted fw-semibold">Year</td>
+                <td>2025</td></tr>
+            <tr><td class="text-muted fw-semibold">Topic</td>
+                <td>Road Accident Risk Assessment</td></tr>
+            <tr><td class="text-muted fw-semibold">ML Framework</td>
+                <td>scikit-learn 1.3</td></tr>
+            <tr><td class="text-muted fw-semibold">Web Framework</td>
+                <td>Flask 3.0 / Python 3.13</td></tr>
+            <tr><td class="text-muted fw-semibold">Database</td>
+                <td>SQLite (via SQLAlchemy)</td></tr>
+          </table>
+        </div>
+      </div>
+
+      <!-- LO Coverage -->
+      <div class="card shadow-sm">
+        <div class="card-header rg-card-header">
+          <i class="bi bi-list-check me-2"></i>Learning Outcomes Covered
+        </div>
+        <div class="card-body p-0">
+          {% for lo in [
+            ('LO1','Develop a project proposal', 'ML problem definition, literature, SMART objectives'),
+            ('LO2','Deliver a project', 'Agile planning, Flask app, GDPR, risk register'),
+            ('LO3','Generate evidence-based insights', '8 Chart.js charts, model metrics, factor analysis'),
+            ('LO4','Communicate outcomes', 'Professional UI, print reports, chatbot, reflection'),
+          ] %}
+          <div class="d-flex gap-3 p-3 border-bottom">
+            <span class="badge bg-primary align-self-start mt-1">{{ lo[0] }}</span>
+            <div>
+              <div class="fw-semibold small">{{ lo[1] }}</div>
+              <div class="text-muted" style="font-size:.78rem;">{{ lo[2] }}</div>
+            </div>
+          </div>
+          {% endfor %}
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ML Model section -->
+  <h3 class="fw-bold mb-4"><i class="bi bi-cpu me-2 text-warning"></i>Machine Learning Architecture</h3>
+  <div class="row g-4 mb-5">
+    {% for item in [
+      ('bi-database','bg-primary-subtle text-primary','Dataset','12,000 synthetic records with realistic accident risk distributions. 12 features: 8 numeric + 4 categorical.'),
+      ('bi-gear-wide-connected','bg-warning-subtle text-warning','Pipeline','StandardScaler for numeric features + OneHotEncoder for categorical. ColumnTransformer + scikit-learn Pipeline.'),
+      ('bi-diagram-3','bg-success-subtle text-success','Models Compared','Gradient Boosting (best), Random Forest, Logistic Regression, Decision Tree. 5-fold cross-validation.'),
+      ('bi-graph-up','bg-danger-subtle text-danger','Evaluation','Test accuracy: 86.08%. Metrics: Precision, Recall, F1-score per class. Confusion matrix.'),
+      ('bi-eye','bg-info-subtle text-info','Explainability','Factor contribution chart (per prediction). Feature importance from Random Forest. Recommendations engine.'),
+      ('bi-shield-check','bg-secondary-subtle text-secondary','Prediction Output','Risk category (4 classes) + risk score (0–100) + premium multiplier + claim probability + recommendations.'),
+    ] %}
+    <div class="col-md-6 col-lg-4">
+      <div class="card shadow-sm h-100">
+        <div class="card-body d-flex gap-3">
+          <div class="about-section-icon {{ item[1] }} flex-shrink-0">
+            <i class="bi {{ item[0] }}"></i>
+          </div>
+          <div>
+            <h6 class="fw-bold mb-1">{{ item[2] }}</h6>
+            <p class="text-muted small mb-0">{{ item[3] }}</p>
+          </div>
+        </div>
+      </div>
+    </div>
+    {% endfor %}
+  </div>
+
+  <!-- Technology Stack -->
+  <h3 class="fw-bold mb-4"><i class="bi bi-stack me-2 text-info"></i>Technology Stack</h3>
+  <div class="row g-3 mb-5">
+    {% for tech in [
+      ('Python 3.13','Backend language','bg-primary'),
+      ('Flask 3.0','Web framework','bg-primary'),
+      ('scikit-learn 1.3','ML algorithms & pipeline','bg-success'),
+      ('pandas / numpy','Data processing','bg-success'),
+      ('SQLite + SQLAlchemy','Database ORM','bg-warning'),
+      ('Bootstrap 5.3','Frontend CSS framework','bg-info'),
+      ('Chart.js 4.4','Interactive charts','bg-danger'),
+      ('Bootstrap Icons','Icon library','bg-secondary'),
+    ] %}
+    <div class="col-6 col-md-3">
+      <div class="kpi-box d-flex align-items-center gap-2 text-start p-3">
+        <span class="badge {{ tech[2] }} p-2 fs-6 flex-shrink-0">
+          <i class="bi bi-code-slash"></i>
+        </span>
+        <div>
+          <div class="fw-semibold small">{{ tech[0] }}</div>
+          <div class="kpi-box-lbl text-start">{{ tech[1] }}</div>
+        </div>
+      </div>
+    </div>
+    {% endfor %}
+  </div>
+
+  <!-- Ethical considerations -->
+  <div class="row g-4 mb-5">
+    <div class="col-lg-6">
+      <div class="card shadow-sm h-100">
+        <div class="card-header rg-card-header">
+          <i class="bi bi-shield-lock me-2"></i>Ethical &amp; Legal Considerations
+        </div>
+        <div class="card-body">
+          <ul class="list-unstyled mb-0">
+            {% for item in [
+              ('Synthetic data only — no real personal data collected or stored'),
+              ('GDPR-compliant: no PII transmitted to third parties'),
+              ('Bias mitigation: balanced class weights in model training'),
+              ('Transparent predictions: factor contributions shown to users'),
+              ('No automated decision-making without human review'),
+              ('Session data stored locally in SQLite; not shared externally'),
+            ] %}
+            <li class="d-flex gap-2 mb-2 small">
+              <i class="bi bi-check-circle-fill text-success mt-1 flex-shrink-0"></i>
+              <span>{{ item }}</span>
+            </li>
+            {% endfor %}
+          </ul>
+        </div>
+      </div>
+    </div>
+    <div class="col-lg-6">
+      <div class="card shadow-sm h-100">
+        <div class="card-header rg-card-header">
+          <i class="bi bi-book me-2"></i>Key References
+        </div>
+        <div class="card-body">
+          <ul class="list-unstyled mb-0 small text-muted">
+            <li class="mb-2">Saunders, M., Lewis, P. &amp; Thornhill, A. (2023). <em>Research Methods for Business Students</em>. 9th edn. Pearson.</li>
+            <li class="mb-2">Breiman, L. (2001). Random Forests. <em>Machine Learning</em>, 45(1), pp.5–32.</li>
+            <li class="mb-2">Pedregosa, F. et al. (2011). Scikit-learn. <em>Journal of Machine Learning Research</em>, 12, pp.2825–2830.</li>
+            <li class="mb-2">Association of British Insurers (2023). <em>UK Motor Insurance Statistics</em>. ABI.</li>
+            <li class="mb-0">ICO (2023). <em>Guide to the UK GDPR</em>. Information Commissioner's Office.</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- CTA -->
+  <div class="text-center py-4 rounded-4" style="background:linear-gradient(135deg,rgba(240,165,0,.08),rgba(59,130,246,.08));border:1px solid var(--border);">
+    <h4 class="fw-bold mb-2">Ready to explore the system?</h4>
+    <p class="text-muted mb-4">Run a risk assessment, explore the analytics dashboard, or ask the AI chatbot.</p>
+    <div class="d-flex gap-3 justify-content-center flex-wrap">
+      <a href="/assessment" class="btn btn-warning fw-bold px-4">
+        <i class="bi bi-clipboard-data me-2"></i>Start Assessment
+      </a>
+      <a href="/dashboard" class="btn btn-outline-primary px-4">
+        <i class="bi bi-bar-chart-line me-2"></i>Analytics
+      </a>
+      <a href="/chatbot" class="btn btn-outline-info px-4">
+        <i class="bi bi-robot me-2"></i>AI Chatbot
+      </a>
+    </div>
+  </div>
+
+</div>
+{% endblock %}

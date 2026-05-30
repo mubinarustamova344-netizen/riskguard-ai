@@ -1,0 +1,327 @@
+{% extends "base.html" %}
+{% block title %}RiskGuard AI – Home{% endblock %}
+
+{% block content %}
+
+<!-- ═══════════════════════ HERO ═══════════════════════ -->
+<section class="rg-hero py-5">
+  <div class="container py-4">
+    <div class="row align-items-center gy-5">
+
+      <!-- Left: Text -->
+      <div class="col-lg-6">
+        <div class="hero-badge mb-4">
+          <i class="bi bi-cpu-fill"></i>
+          AI-Powered Risk Engine &nbsp;&bull;&nbsp; ML Accuracy: 86%+
+        </div>
+
+        <h1 class="hero-title mb-4">
+          Road Accident<br>
+          <span class="accent-text">Risk Assessment</span><br>
+          <span style="font-size:.75em;font-weight:600;color:rgba(255,255,255,.7);">for Insurance Companies</span>
+        </h1>
+
+        <p class="hero-desc mb-4">
+          A machine-learning platform that evaluates driver risk profiles,
+          predicts claim probabilities and calculates premium multipliers —
+          delivering instant, data-driven underwriting decisions.
+        </p>
+
+        <div class="hero-actions d-flex gap-3 flex-wrap">
+          <a href="/assessment" class="btn btn-warning btn-lg px-4 fw-bold">
+            <i class="bi bi-clipboard-data me-2"></i>Start Assessment
+          </a>
+          <a href="/dashboard" class="btn btn-outline-light btn-lg px-4">
+            <i class="bi bi-bar-chart-line me-2"></i>View Analytics
+          </a>
+          <a href="/chatbot" class="btn btn-outline-light btn-lg px-4">
+            <i class="bi bi-robot me-2"></i>Ask AI
+          </a>
+        </div>
+      </div>
+
+      <!-- Right: Stats grid -->
+      <div class="col-lg-6">
+        <div class="hero-stats-grid">
+          <div class="hero-stat-card">
+            <div class="stat-icon"><i class="bi bi-database-fill"></i></div>
+            <div class="stat-value"
+                 data-counter="12000"
+                 data-suffix="+"
+                 data-duration="1800">12000+</div>
+            <div class="stat-label">Training Records</div>
+          </div>
+          <div class="hero-stat-card">
+            <div class="stat-icon"><i class="bi bi-graph-up-arrow"></i></div>
+            <div class="stat-value"
+                 data-counter="86.1"
+                 data-suffix="%"
+                 data-duration="1600">86.1%</div>
+            <div class="stat-label">Model Accuracy</div>
+          </div>
+          <div class="hero-stat-card">
+            <div class="stat-icon"><i class="bi bi-layers-fill"></i></div>
+            <div class="stat-value"
+                 data-counter="4"
+                 data-duration="800">4</div>
+            <div class="stat-label">Risk Categories</div>
+          </div>
+          <div class="hero-stat-card">
+            <div class="stat-icon"><i class="bi bi-lightning-charge-fill"></i></div>
+            <div class="stat-value"
+                 data-counter="12"
+                 data-duration="900">12</div>
+            <div class="stat-label">Input Features</div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</section>
+
+<!-- ═══════════════════ STATS BAR ═══════════════════ -->
+<section class="rg-stats-bar py-4">
+  <div class="container">
+    <div class="row g-3 text-center">
+      <div class="col-6 col-md-3">
+        <div class="stat-pill stat-low">
+          <span class="stat-pill-val">{{ cats.get('Low',0) }}</span>
+          <span class="stat-pill-lbl">Low Risk</span>
+        </div>
+      </div>
+      <div class="col-6 col-md-3">
+        <div class="stat-pill stat-medium">
+          <span class="stat-pill-val">{{ cats.get('Medium',0) }}</span>
+          <span class="stat-pill-lbl">Medium Risk</span>
+        </div>
+      </div>
+      <div class="col-6 col-md-3">
+        <div class="stat-pill stat-high">
+          <span class="stat-pill-val">{{ cats.get('High',0) }}</span>
+          <span class="stat-pill-lbl">High Risk</span>
+        </div>
+      </div>
+      <div class="col-6 col-md-3">
+        <div class="stat-pill stat-veryhigh">
+          <span class="stat-pill-val">{{ cats.get('Very High',0) }}</span>
+          <span class="stat-pill-lbl">Very High Risk</span>
+        </div>
+      </div>
+    </div>
+    <p class="text-center text-muted mt-3 mb-0 small">
+      Total assessments recorded: <strong>{{ total }}</strong>
+      &nbsp;&bull;&nbsp;
+      <a href="/history" class="text-primary text-decoration-none">View all <i class="bi bi-arrow-right"></i></a>
+    </p>
+  </div>
+</section>
+
+<!-- ═══════════════════ FEATURES ═══════════════════ -->
+<section class="py-5">
+  <div class="container">
+    <div class="text-center mb-5 animate-fade-in">
+      <span class="badge px-3 py-2 mb-3" style="background:var(--accent-glow);color:var(--accent);font-size:.82rem;">
+        <i class="bi bi-star-fill me-1"></i>System Capabilities
+      </span>
+      <h2 class="fw-bold">Everything You Need for<br>Intelligent Underwriting</h2>
+      <p class="text-muted">Data-driven tools built for modern insurance professionals</p>
+    </div>
+
+    <div class="row g-4">
+      <div class="col-md-6 col-lg-3 animate-fade-in">
+        <div class="feature-card h-100">
+          <div class="feature-icon bg-primary-subtle text-primary mb-3">
+            <i class="bi bi-cpu-fill"></i>
+          </div>
+          <h5 class="fw-bold">ML Risk Engine</h5>
+          <p class="text-muted small flex-grow-1">
+            Gradient Boosting Classifier trained on 12,000 records, compared against
+            4 algorithms with 5-fold cross-validation.
+          </p>
+          <a href="/dashboard" class="btn btn-sm btn-outline-primary mt-2">View Metrics</a>
+        </div>
+      </div>
+      <div class="col-md-6 col-lg-3 animate-fade-in-2">
+        <div class="feature-card h-100">
+          <div class="feature-icon bg-success-subtle text-success mb-3">
+            <i class="bi bi-clipboard2-pulse-fill"></i>
+          </div>
+          <h5 class="fw-bold">Risk Assessment</h5>
+          <p class="text-muted small flex-grow-1">
+            3-section guided form with live risk preview. Get risk score (0–100),
+            premium multiplier and factor contribution chart instantly.
+          </p>
+          <a href="/assessment" class="btn btn-sm btn-outline-success mt-2">Start Now</a>
+        </div>
+      </div>
+      <div class="col-md-6 col-lg-3 animate-fade-in">
+        <div class="feature-card h-100">
+          <div class="feature-icon mb-3" style="background:rgba(240,165,0,.12);color:var(--accent);">
+            <i class="bi bi-calculator-fill"></i>
+          </div>
+          <h5 class="fw-bold">Quote Calculator</h5>
+          <p class="text-muted small flex-grow-1">
+            Enter any base premium and get a full quote breakdown across 3 coverage tiers
+            with savings recommendations.
+          </p>
+          <a href="/quote" class="btn btn-sm btn-outline-warning mt-2">Calculate</a>
+        </div>
+      </div>
+      <div class="col-md-6 col-lg-3 animate-fade-in-2">
+        <div class="feature-card h-100">
+          <div class="feature-icon bg-info-subtle text-info mb-3">
+            <i class="bi bi-robot"></i>
+          </div>
+          <h5 class="fw-bold">AI Chatbot</h5>
+          <p class="text-muted small flex-grow-1">
+            19-intent NLP chatbot trained on insurance domain knowledge.
+            Answers queries about risk, premiums, fraud, telematics and more.
+          </p>
+          <a href="/chatbot" class="btn btn-sm btn-outline-info mt-2">Chat Now</a>
+        </div>
+      </div>
+      <div class="col-md-6 col-lg-3 animate-fade-in">
+        <div class="feature-card h-100">
+          <div class="feature-icon bg-danger-subtle text-danger mb-3">
+            <i class="bi bi-bar-chart-fill"></i>
+          </div>
+          <h5 class="fw-bold">Analytics Dashboard</h5>
+          <p class="text-muted small flex-grow-1">
+            8 interactive Chart.js charts: risk distribution, feature importance,
+            age histogram, score distribution, model comparison and more.
+          </p>
+          <a href="/dashboard" class="btn btn-sm btn-outline-danger mt-2">Dashboard</a>
+        </div>
+      </div>
+      <div class="col-md-6 col-lg-3 animate-fade-in-2">
+        <div class="feature-card h-100">
+          <div class="feature-icon bg-secondary-subtle text-secondary mb-3">
+            <i class="bi bi-arrow-left-right"></i>
+          </div>
+          <h5 class="fw-bold">Risk Comparison</h5>
+          <p class="text-muted small flex-grow-1">
+            Side-by-side comparison of two driver profiles with head-to-head charts
+            and factor-level winner indicators.
+          </p>
+          <a href="/compare" class="btn btn-sm btn-outline-secondary mt-2">Compare</a>
+        </div>
+      </div>
+      <div class="col-md-6 col-lg-3 animate-fade-in">
+        <div class="feature-card h-100">
+          <div class="feature-icon mb-3" style="background:rgba(16,185,129,.12);color:var(--low);">
+            <i class="bi bi-file-earmark-bar-graph-fill"></i>
+          </div>
+          <h5 class="fw-bold">Full Reports</h5>
+          <p class="text-muted small flex-grow-1">
+            Print-ready assessment reports with risk gauge, factor charts,
+            premium breakdown and personalised recommendations.
+          </p>
+          <a href="/history" class="btn btn-sm mt-2" style="border-color:var(--low);color:var(--low);">View History</a>
+        </div>
+      </div>
+      <div class="col-md-6 col-lg-3 animate-fade-in-2">
+        <div class="feature-card h-100">
+          <div class="feature-icon bg-warning-subtle text-warning mb-3">
+            <i class="bi bi-download"></i>
+          </div>
+          <h5 class="fw-bold">CSV Export</h5>
+          <p class="text-muted small flex-grow-1">
+            Export all assessment history to CSV for offline analysis,
+            reporting, or integration with third-party insurance systems.
+          </p>
+          <a href="/api/export-csv" class="btn btn-sm btn-outline-warning mt-2">Export</a>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════════════════ HOW IT WORKS ═══════════════════ -->
+<section class="py-5" style="background:var(--bg);">
+  <div class="container">
+    <div class="text-center mb-5">
+      <h2 class="fw-bold">How It Works</h2>
+      <p class="text-muted">Four steps from input to actionable insurance insight</p>
+    </div>
+    <div class="row g-4">
+      {% for step in [
+        ('1','bi-person-fill-gear','text-primary','Input Profile','Enter driver demographics, vehicle details and driving behaviour data.'),
+        ('2','bi-gear-wide-connected','text-warning','Feature Processing','Data is normalised and one-hot encoded by the scikit-learn pipeline.'),
+        ('3','bi-diagram-3-fill','text-success','Model Prediction','Gradient Boosting classifies risk into 4 categories with probability scores.'),
+        ('4','bi-file-earmark-bar-graph-fill','text-danger','Report & Advice','Full report with risk gauge, factor chart, premium multiplier and tips.')
+      ] %}
+      <div class="col-md-3">
+        <div class="step-card">
+          <div class="step-num">{{ step[0] }}</div>
+          <i class="bi {{ step[1] }} fs-2 {{ step[2] }} d-block my-3"></i>
+          <h6 class="fw-bold">{{ step[3] }}</h6>
+          <p class="small text-muted mb-0">{{ step[4] }}</p>
+        </div>
+      </div>
+      {% endfor %}
+    </div>
+  </div>
+</section>
+
+<!-- ═══════════════════ RECENT ASSESSMENTS ═══════════════════ -->
+{% if recent %}
+<section class="py-5">
+  <div class="container">
+    <div class="d-flex justify-content-between align-items-center mb-4 flex-wrap gap-2">
+      <h4 class="fw-bold mb-0">
+        <i class="bi bi-clock-history me-2 text-primary"></i>Recent Assessments
+      </h4>
+      <a href="/history" class="btn btn-outline-secondary btn-sm">
+        View All <i class="bi bi-arrow-right ms-1"></i>
+      </a>
+    </div>
+    <div class="card shadow-sm">
+      <div class="card-body p-0">
+        <div class="table-responsive">
+          <table class="table table-hover align-middle mb-0">
+            <thead class="table-dark">
+              <tr>
+                <th>ID</th><th>Date</th><th>Age</th><th>Vehicle</th>
+                <th>Risk Score</th><th>Category</th><th>Premium ×</th><th></th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for a in recent %}
+              <tr>
+                <td class="text-muted small">#{{ a.id }}</td>
+                <td class="small">{{ a.created_at.strftime('%d %b %Y') }}</td>
+                <td>{{ a.driver_age }}y</td>
+                <td class="text-capitalize">{{ a.vehicle_type }}</td>
+                <td>
+                  <div class="d-flex align-items-center gap-2">
+                    <div class="progress flex-grow-1" style="height:7px;width:80px;">
+                      <div class="progress-bar {% if a.risk_score < 26 %}bg-success{% elif a.risk_score < 51 %}bg-warning{% elif a.risk_score < 76 %}bg-danger{% else %}bg-danger{% endif %}"
+                           style="width:{{ a.risk_score }}%"></div>
+                    </div>
+                    <span class="fw-semibold">{{ a.risk_score }}</span>
+                  </div>
+                </td>
+                <td>
+                  <span class="badge rg-badge-{{ a.risk_category | lower | replace(' ','-') }}">
+                    {{ a.risk_category }}
+                  </span>
+                </td>
+                <td class="fw-semibold">{{ a.premium_multiplier }}×</td>
+                <td>
+                  <a href="/report/{{ a.id }}" class="btn btn-sm btn-outline-primary">
+                    <i class="bi bi-file-earmark-text"></i>
+                  </a>
+                </td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+{% endif %}
+
+{% endblock %}
