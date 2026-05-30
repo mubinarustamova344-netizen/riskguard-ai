@@ -9,7 +9,7 @@ class Assessment(db.Model):
     __tablename__ = 'assessments'
 
     id = db.Column(db.Integer, primary_key=True)
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow, index=True)
 
     # Input fields
     driver_age = db.Column(db.Integer)
@@ -27,7 +27,7 @@ class Assessment(db.Model):
 
     # Output
     risk_score = db.Column(db.Float)
-    risk_category = db.Column(db.String(20))
+    risk_category = db.Column(db.String(20), index=True)
     premium_multiplier = db.Column(db.Float)
     claim_probability = db.Column(db.Float)
     recommendations_json = db.Column(db.Text)

@@ -3,11 +3,18 @@ import os
 import io
 import csv
 import json
+import logging
+from datetime import timedelta
+from logging.handlers import RotatingFileHandler
 from dotenv import load_dotenv
 from flask import Flask, render_template, request, jsonify, Response, redirect, url_for, flash
 from flask_cors import CORS
 from flask_login import LoginManager, UserMixin, login_user, logout_user, login_required, current_user
+from flask_limiter import Limiter
+from flask_limiter.util import get_remote_address
+from flask_wtf.csrf import CSRFProtect
 from werkzeug.security import generate_password_hash, check_password_hash
+from sqlalchemy import func
 from database import db, Assessment
 from model.risk_model import load_model, load_metrics, predict_risk, compute_factor_contributions
 from model.chatbot_engine import RiskChatbot
@@ -16,18 +23,45 @@ load_dotenv()
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 
-app = Flask(__name__)
-app.config['SQLALCHEMY_DATABASE_URI'] = f"sqlite:///{os.path.join(BASE_DIR, 'assessments.db')}"
-app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
-app.config['SECRET_KEY'] = os.environ['SECRET_KEY']
-app.config['ADMIN_USERNAME'] = os.environ['ADMIN_USERNAME']
-app.config['ADMIN_PASSWORD_HASH'] = generate_password_hash(os.environ['ADMIN_PASSWORD'])
-CORS(app)
+# ── Logging ────────────────────────────────────────────────────────────────────
+_log_handler = RotatingFileHandler(
+    os.path.join(BASE_DIR, 'app.log'), maxBytes=1_000_000, backupCount=3
+)
+_log_handler.setFormatter(logging.Formatter('%(asctime)s %(levelname)s: %(message)s'))
+logger = logging.getLogger(__name__)
+logger.setLevel(logging.INFO)
+logger.addHandler(_log_handler)
 
+# ── App ────────────────────────────────────────────────────────────────────────
+app = Flask(__name__)
+app.config.update(
+    SQLALCHEMY_DATABASE_URI=f"sqlite:///{os.path.join(BASE_DIR, 'assessments.db')}",
+    SQLALCHEMY_TRACK_MODIFICATIONS=False,
+    SECRET_KEY=os.environ['SECRET_KEY'],
+    ADMIN_USERNAME=os.environ['ADMIN_USERNAME'],
+    ADMIN_PASSWORD_HASH=generate_password_hash(os.environ['ADMIN_PASSWORD']),
+    SESSION_COOKIE_HTTPONLY=True,
+    SESSION_COOKIE_SAMESITE='Lax',
+    PERMANENT_SESSION_LIFETIME=timedelta(hours=8),
+    WTF_CSRF_TIME_LIMIT=3600,
+)
+
+CORS(app, resources={r"/api/*": {"origins": ["http://127.0.0.1", "http://localhost"]}})
+csrf = CSRFProtect(app)
+
+# ── Auth ───────────────────────────────────────────────────────────────────────
 login_manager = LoginManager(app)
 login_manager.login_view = 'login'
 login_manager.login_message = 'Please log in to access this page.'
 login_manager.login_message_category = 'warning'
+
+# ── Rate limiting ──────────────────────────────────────────────────────────────
+limiter = Limiter(
+    key_func=get_remote_address,
+    app=app,
+    default_limits=[],
+    storage_uri='memory://',
+)
 
 
 class AdminUser(UserMixin):
@@ -43,23 +77,44 @@ def load_user(user_id):
         return ADMIN_USER
     return None
 
+
 db.init_app(app)
 
-# Load trained model once at startup
+# ── Model ──────────────────────────────────────────────────────────────────────
 try:
     model = load_model()
-    print("Risk model loaded successfully.")
+    logger.info('Risk model loaded successfully')
+    print('Risk model loaded successfully.')
 except FileNotFoundError:
     model = None
-    print("WARNING: Model not found. Run: python setup.py")
+    logger.warning('Model not found — run: python setup.py')
+    print('WARNING: Model not found. Run: python setup.py')
 
 chatbot = RiskChatbot()
 
+# ── Validation constants ───────────────────────────────────────────────────────
 REQUIRED_FIELDS = [
     'driver_age', 'driving_experience', 'annual_mileage', 'vehicle_age',
     'previous_accidents', 'traffic_violations', 'night_driving_pct',
     'credit_score', 'vehicle_type', 'primary_location', 'marital_status', 'gender',
 ]
+
+NUMERIC_RANGES = {
+    'driver_age':           (18, 80),
+    'driving_experience':   (0, 62),
+    'annual_mileage':       (0, 200_000),
+    'vehicle_age':          (0, 30),
+    'previous_accidents':   (0, 20),
+    'traffic_violations':   (0, 20),
+    'night_driving_pct':    (0, 100),
+    'credit_score':         (300, 850),
+}
+
+VALID_VEHICLE_TYPES  = {'sedan', 'suv', 'sports', 'truck', 'van', 'motorcycle'}
+VALID_LOCATIONS      = {'urban', 'suburban', 'rural', 'highway'}
+VALID_MARITAL_STATUS = {'single', 'married', 'divorced'}
+VALID_GENDERS        = {'male', 'female'}
+VALID_CATEGORIES     = {'Low', 'Medium', 'High', 'Very High'}
 
 
 # ── DB init ────────────────────────────────────────────────────────────────────
@@ -68,19 +123,39 @@ def ensure_tables():
     db.create_all()
 
 
+# ── Security headers ───────────────────────────────────────────────────────────
+@app.after_request
+def set_security_headers(response):
+    response.headers['X-Content-Type-Options'] = 'nosniff'
+    response.headers['X-Frame-Options'] = 'DENY'
+    response.headers['Referrer-Policy'] = 'strict-origin-when-cross-origin'
+    return response
+
+
 # ── Error handlers ─────────────────────────────────────────────────────────────
 @app.errorhandler(404)
 def page_not_found(e):
     return render_template('404.html'), 404
 
 
+@app.errorhandler(429)
+def rate_limited(e):
+    if request.path.startswith('/api/'):
+        return jsonify({'error': 'Too many requests. Please slow down.'}), 429
+    flash('Too many requests. Please wait a moment.', 'warning')
+    return redirect(url_for('login'))
+
+
 @app.errorhandler(500)
 def internal_error(e):
+    logger.exception('Internal server error')
+    db.session.rollback()
     return render_template('500.html'), 500
 
 
-# ── Auth ───────────────────────────────────────────────────────────────────────
+# ── Auth routes ────────────────────────────────────────────────────────────────
 @app.route('/login', methods=['GET', 'POST'])
+@limiter.limit('10 per minute')
 def login():
     if current_user.is_authenticated:
         return redirect(url_for('index'))
@@ -90,8 +165,10 @@ def login():
         if (username == app.config['ADMIN_USERNAME'] and
                 check_password_hash(app.config['ADMIN_PASSWORD_HASH'], password)):
             login_user(ADMIN_USER, remember=request.form.get('remember') == 'on')
+            logger.info('Successful login from %s', request.remote_addr)
             next_page = request.args.get('next')
             return redirect(next_page or url_for('index'))
+        logger.warning('Failed login attempt for "%s" from %s', username, request.remote_addr)
         flash('Invalid username or password.', 'danger')
     return render_template('login.html')
 
@@ -99,11 +176,12 @@ def login():
 @app.route('/logout')
 @login_required
 def logout():
+    logger.info('Logout from %s', request.remote_addr)
     logout_user()
     return redirect(url_for('login'))
 
 
-# ── Pages ──────────────────────────────────────────────────────────────────────
+# ── Page routes ────────────────────────────────────────────────────────────────
 @app.route('/')
 @login_required
 def index():
@@ -139,6 +217,8 @@ def history():
     page = request.args.get('page', 1, type=int)
     per_page = 15
     cat_filter = request.args.get('category', '').strip()
+    if cat_filter and cat_filter not in VALID_CATEGORIES:
+        cat_filter = ''
     query = Assessment.query.order_by(Assessment.created_at.desc())
     if cat_filter:
         query = query.filter_by(risk_category=cat_filter)
@@ -162,8 +242,23 @@ def report(assessment_id):
     return render_template('report.html', assessment=record.to_dict())
 
 
-# ── API ────────────────────────────────────────────────────────────────────────
+@app.route('/quote')
+@login_required
+def quote():
+    return render_template('quote.html')
+
+
+@app.route('/compare')
+@login_required
+def compare():
+    return render_template('compare.html')
+
+
+# ── API routes ─────────────────────────────────────────────────────────────────
 @app.route('/api/assess', methods=['POST'])
+@csrf.exempt
+@login_required
+@limiter.limit('30 per minute')
 def api_assess():
     if model is None:
         return jsonify({'error': 'Model not loaded. Run: python setup.py'}), 503
@@ -176,31 +271,44 @@ def api_assess():
         if field not in data or data[field] == '' or data[field] is None:
             return jsonify({'error': f'Missing required field: {field}'}), 400
 
-    # Coerce numeric fields
     try:
-        numeric_inputs = {
-            'driver_age': int(data['driver_age']),
-            'driving_experience': int(data['driving_experience']),
-            'annual_mileage': int(data['annual_mileage']),
-            'vehicle_age': int(data['vehicle_age']),
-            'previous_accidents': int(data['previous_accidents']),
-            'traffic_violations': int(data['traffic_violations']),
-            'night_driving_pct': int(data['night_driving_pct']),
-            'credit_score': int(data['credit_score']),
-        }
+        numeric_inputs = {k: int(data[k]) for k in [
+            'driver_age', 'driving_experience', 'annual_mileage', 'vehicle_age',
+            'previous_accidents', 'traffic_violations', 'night_driving_pct', 'credit_score',
+        ]}
     except (ValueError, TypeError) as e:
         return jsonify({'error': f'Invalid numeric value: {e}'}), 400
 
+    for field, (lo, hi) in NUMERIC_RANGES.items():
+        v = numeric_inputs[field]
+        if not (lo <= v <= hi):
+            return jsonify({'error': f'{field} must be between {lo} and {hi}'}), 400
+
+    vehicle_type    = str(data['vehicle_type']).lower().strip()
+    primary_location = str(data['primary_location']).lower().strip()
+    marital_status  = str(data['marital_status']).lower().strip()
+    gender          = str(data['gender']).lower().strip()
+
+    if vehicle_type not in VALID_VEHICLE_TYPES:
+        return jsonify({'error': f'Invalid vehicle_type: {vehicle_type}'}), 400
+    if primary_location not in VALID_LOCATIONS:
+        return jsonify({'error': f'Invalid primary_location: {primary_location}'}), 400
+    if marital_status not in VALID_MARITAL_STATUS:
+        return jsonify({'error': f'Invalid marital_status: {marital_status}'}), 400
+    if gender not in VALID_GENDERS:
+        return jsonify({'error': f'Invalid gender: {gender}'}), 400
+
     input_data = {**numeric_inputs,
-                  'vehicle_type': str(data['vehicle_type']),
-                  'primary_location': str(data['primary_location']),
-                  'marital_status': str(data['marital_status']),
-                  'gender': str(data['gender'])}
+                  'vehicle_type': vehicle_type,
+                  'primary_location': primary_location,
+                  'marital_status': marital_status,
+                  'gender': gender}
 
     try:
         result = predict_risk(model, input_data)
-    except Exception as e:
-        return jsonify({'error': f'Prediction error: {str(e)}'}), 500
+    except Exception:
+        logger.exception('Prediction error for input: %s', input_data)
+        return jsonify({'error': 'Prediction failed. Please check your input values.'}), 500
 
     record = Assessment(
         driver_age=input_data['driver_age'],
@@ -221,14 +329,24 @@ def api_assess():
         claim_probability=result['claim_probability'],
         recommendations_json=json.dumps(result['recommendations']),
     )
-    db.session.add(record)
-    db.session.commit()
+    try:
+        db.session.add(record)
+        db.session.commit()
+    except Exception:
+        db.session.rollback()
+        logger.exception('Failed to save assessment')
+        return jsonify({'error': 'Database error — assessment not saved.'}), 500
 
+    logger.info('Assessment #%d saved: %s (score=%.1f)', record.id,
+                result['risk_category'], result['risk_score'])
     result['assessment_id'] = record.id
     return jsonify(result)
 
 
 @app.route('/api/chat', methods=['POST'])
+@csrf.exempt
+@login_required
+@limiter.limit('60 per minute')
 def api_chat():
     data = request.get_json(silent=True)
     if not data:
@@ -236,17 +354,22 @@ def api_chat():
     message = str(data.get('message', '')).strip()
     if not message:
         return jsonify({'error': 'Empty message'}), 400
+    if len(message) > 2000:
+        return jsonify({'error': 'Message too long (max 2000 characters)'}), 400
     response = chatbot.chat(message)
     return jsonify(response)
 
 
 @app.route('/api/chat/reset', methods=['POST'])
+@csrf.exempt
+@login_required
 def api_chat_reset():
     chatbot.reset()
     return jsonify({'status': 'ok'})
 
 
 @app.route('/api/model-metrics')
+@login_required
 def api_model_metrics():
     metrics = load_metrics()
     if not metrics:
@@ -265,56 +388,63 @@ def api_model_metrics():
 
 
 @app.route('/api/history')
+@login_required
 def api_history():
     records = Assessment.query.order_by(Assessment.created_at.desc()).limit(200).all()
     return jsonify([r.to_dict() for r in records])
 
 
 @app.route('/api/stats')
+@login_required
 def api_stats():
-    all_records = Assessment.query.all()
-    if not all_records:
+    total = Assessment.query.count()
+    if not total:
         return jsonify({'total': 0, 'message': 'No assessments yet'})
 
+    cat_rows = db.session.query(
+        Assessment.risk_category, func.count(Assessment.id)
+    ).group_by(Assessment.risk_category).all()
     cats = {'Low': 0, 'Medium': 0, 'High': 0, 'Very High': 0}
-    scores, ages = [], []
-    vtypes, locs, monthly = {}, {}, {}
+    for cat, cnt in cat_rows:
+        cats[cat] = cnt
 
-    for r in all_records:
-        cats[r.risk_category] = cats.get(r.risk_category, 0) + 1
-        scores.append(r.risk_score)
-        ages.append(r.driver_age)
-        vtypes[r.vehicle_type] = vtypes.get(r.vehicle_type, 0) + 1
-        locs[r.primary_location] = locs.get(r.primary_location, 0) + 1
-        month = r.created_at.strftime('%Y-%m')
-        monthly[month] = monthly.get(month, 0) + 1
+    score_agg = db.session.query(
+        func.avg(Assessment.risk_score),
+        func.max(Assessment.risk_score),
+        func.min(Assessment.risk_score),
+    ).one()
+
+    vtype_rows = db.session.query(
+        Assessment.vehicle_type, func.count(Assessment.id)
+    ).group_by(Assessment.vehicle_type).all()
+
+    loc_rows = db.session.query(
+        Assessment.primary_location, func.count(Assessment.id)
+    ).group_by(Assessment.primary_location).all()
+
+    monthly_rows = db.session.query(
+        func.strftime('%Y-%m', Assessment.created_at),
+        func.count(Assessment.id)
+    ).group_by(func.strftime('%Y-%m', Assessment.created_at)).all()
+
+    ages = [r[0] for r in db.session.query(Assessment.driver_age).all()]
 
     return jsonify({
-        'total': len(all_records),
+        'total': total,
         'category_distribution': cats,
-        'avg_risk_score': round(sum(scores) / len(scores), 1),
-        'max_risk_score': round(max(scores), 1),
-        'min_risk_score': round(min(scores), 1),
+        'avg_risk_score': round(score_agg[0] or 0, 1),
+        'max_risk_score': round(score_agg[1] or 0, 1),
+        'min_risk_score': round(score_agg[2] or 0, 1),
         'age_distribution': ages,
-        'vehicle_type_distribution': vtypes,
-        'location_distribution': locs,
-        'monthly_assessments': monthly,
+        'vehicle_type_distribution': dict(vtype_rows),
+        'location_distribution': dict(loc_rows),
+        'monthly_assessments': dict(monthly_rows),
     })
 
 
-@app.route('/quote')
-@login_required
-def quote():
-    return render_template('quote.html')
-
-
-@app.route('/compare')
-@login_required
-def compare():
-    return render_template('compare.html')
-
-
 @app.route('/api/compare', methods=['POST'])
+@csrf.exempt
+@login_required
 def api_compare():
     if model is None:
         return jsonify({'error': 'Model not loaded'}), 503
@@ -324,18 +454,22 @@ def api_compare():
     try:
         result_a = predict_risk(model, data['profile_a'])
         result_b = predict_risk(model, data['profile_b'])
-    except Exception as e:
-        return jsonify({'error': str(e)}), 500
+    except Exception:
+        logger.exception('Compare prediction error')
+        return jsonify({'error': 'Prediction failed'}), 500
     return jsonify({'profile_a': result_a, 'profile_b': result_b})
 
 
 @app.route('/api/export-csv')
+@login_required
 def api_export_csv():
     cat_filter = request.args.get('category', '').strip()
+    if cat_filter and cat_filter not in VALID_CATEGORIES:
+        return jsonify({'error': 'Invalid category filter'}), 400
     query = Assessment.query.order_by(Assessment.created_at.desc())
     if cat_filter:
         query = query.filter_by(risk_category=cat_filter)
-    records = query.all()
+    records = query.limit(10_000).all()
 
     output = io.StringIO()
     writer = csv.writer(output)
@@ -351,6 +485,8 @@ def api_export_csv():
                          r.credit_score, r.risk_score, r.risk_category,
                          r.premium_multiplier, r.claim_probability])
 
+    logger.info('CSV export: %d records (filter=%r) from %s',
+                len(records), cat_filter or 'none', request.remote_addr)
     output.seek(0)
     return Response(
         output.getvalue(),
@@ -360,31 +496,29 @@ def api_export_csv():
 
 
 @app.route('/api/age-distribution')
+@login_required
 def api_age_distribution():
-    records = Assessment.query.all()
     buckets = {'18-24': 0, '25-34': 0, '35-44': 0, '45-54': 0, '55-64': 0, '65+': 0}
-    for r in records:
-        a = r.driver_age
-        if a < 25:      buckets['18-24'] += 1
-        elif a < 35:    buckets['25-34'] += 1
-        elif a < 45:    buckets['35-44'] += 1
-        elif a < 55:    buckets['45-54'] += 1
-        elif a < 65:    buckets['55-64'] += 1
-        else:           buckets['65+']   += 1
+    for (a,) in db.session.query(Assessment.driver_age).all():
+        if a < 25:    buckets['18-24'] += 1
+        elif a < 35:  buckets['25-34'] += 1
+        elif a < 45:  buckets['35-44'] += 1
+        elif a < 55:  buckets['45-54'] += 1
+        elif a < 65:  buckets['55-64'] += 1
+        else:         buckets['65+']   += 1
     return jsonify(buckets)
 
 
 @app.route('/api/score-distribution')
+@login_required
 def api_score_distribution():
-    records = Assessment.query.all()
     buckets = {'0-20': 0, '21-40': 0, '41-60': 0, '61-80': 0, '81-100': 0}
-    for r in records:
-        s = r.risk_score
-        if s <= 20:     buckets['0-20']   += 1
-        elif s <= 40:   buckets['21-40']  += 1
-        elif s <= 60:   buckets['41-60']  += 1
-        elif s <= 80:   buckets['61-80']  += 1
-        else:           buckets['81-100'] += 1
+    for (s,) in db.session.query(Assessment.risk_score).all():
+        if s <= 20:    buckets['0-20']   += 1
+        elif s <= 40:  buckets['21-40']  += 1
+        elif s <= 60:  buckets['41-60']  += 1
+        elif s <= 80:  buckets['61-80']  += 1
+        else:          buckets['81-100'] += 1
     return jsonify(buckets)
 
 
@@ -394,7 +528,6 @@ if __name__ == '__main__':
     with app.app_context():
         db.create_all()
 
-    # Try port 5000 first, fall back to 5001–5009
     chosen = 5000
     for p in [5000, 5001, 5002, 5003, 5004, 5005]:
         sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -405,10 +538,5 @@ if __name__ == '__main__':
             chosen = p
             break
 
-    print('')
-    print('  ================================================')
-    print(f'  Browser da oching:  http://127.0.0.1:{chosen}')
-    print('  To\'xtatish uchun:   Ctrl+C')
-    print('  ================================================')
-    print('')
+    print(f'\n  App running at: http://127.0.0.1:{chosen}\n')
     app.run(debug=False, port=chosen, host='127.0.0.1')

@@ -4,6 +4,7 @@ __pycache__/
 *.db
 *.csv
 .env
+*.log
 *.egg-info/
 dist/
 build/
