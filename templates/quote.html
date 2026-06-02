@@ -133,6 +133,20 @@
                          oninput="document.getElementById('q_nightVal').textContent=this.value+'%'">
                 </div>
 
+                <hr class="my-3">
+                <p class="fw-semibold text-muted small mb-2">DISCOUNT</p>
+                <div class="mb-3">
+                  <label class="form-label small fw-semibold" for="q_ncb">No-Claims Bonus (NCB)</label>
+                  <select class="form-select" id="q_ncb">
+                    <option value="0" selected>0 years – No discount</option>
+                    <option value="1">1 year – 10% off</option>
+                    <option value="2">2 years – 20% off</option>
+                    <option value="3">3 years – 30% off</option>
+                    <option value="4">4+ years – 40% off</option>
+                  </select>
+                  <div class="form-text">Consecutive claim-free years on your policy.</div>
+                </div>
+
                 <button type="submit" class="btn btn-info btn-lg w-100 text-white fw-semibold">
                   <i class="bi bi-calculator me-2"></i>Calculate Quote
                 </button>
@@ -189,6 +203,14 @@
               </div>
             </div>
 
+            <!-- Factor Contributions -->
+            <div class="card shadow-sm mb-4">
+              <div class="card-header rg-card-header">
+                <i class="bi bi-bar-chart-horizontal me-2"></i>Risk Factor Breakdown
+              </div>
+              <div class="card-body" id="factorBars"></div>
+            </div>
+
             <!-- Savings Tips -->
             <div class="card shadow-sm">
               <div class="rg-card-header-success">
@@ -197,6 +219,14 @@
               <div class="card-body" id="savingsTips"></div>
             </div>
 
+          </div>
+
+          <!-- Error alert -->
+          <div id="quoteError" class="alert alert-danger alert-dismissible fade show d-none" role="alert">
+            <i class="bi bi-exclamation-triangle-fill me-2"></i>
+            <span id="quoteErrorMsg"></span>
+            <button type="button" class="btn-close" data-bs-dismiss="alert"
+                    onclick="document.getElementById('quoteError').classList.add('d-none')"></button>
           </div>
 
           <!-- Placeholder before calculation -->
@@ -221,7 +251,11 @@ document.getElementById('quoteForm').addEventListener('submit', async function(e
   btn.disabled = true;
   btn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Calculating…';
 
+  // Hide any previous error
+  document.getElementById('quoteError').classList.add('d-none');
+
   const base = parseFloat(document.getElementById('base_premium').value);
+  const ncbYears = parseInt(document.getElementById('q_ncb').value);
   const payload = {
     driver_age: parseInt(document.getElementById('q_age').value),
     driving_experience: parseInt(document.getElementById('q_exp').value),
@@ -243,8 +277,15 @@ document.getElementById('quoteForm').addEventListener('submit', async function(e
       body: JSON.stringify(payload)
     });
     const d = await resp.json();
-    if (d.error) { alert(d.error); return; }
-    renderQuote(d, base);
+    if (d.error) {
+      document.getElementById('quoteErrorMsg').textContent = d.error;
+      document.getElementById('quoteError').classList.remove('d-none');
+      return;
+    }
+    renderQuote(d, base, ncbYears);
+  } catch (err) {
+    document.getElementById('quoteErrorMsg').textContent = 'Could not reach the server. Please try again.';
+    document.getElementById('quoteError').classList.remove('d-none');
   } finally {
     btn.disabled = false;
     btn.innerHTML = '<i class="bi bi-calculator me-2"></i>Calculate Quote';
@@ -253,7 +294,7 @@ document.getElementById('quoteForm').addEventListener('submit', async function(e
 
 function fmt(n) { return '£' + n.toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g,','); }
 
-function renderQuote(d, base) {
+function renderQuote(d, base, ncbYears) {
   document.getElementById('quotePlaceholder').classList.add('d-none');
   document.getElementById('quoteResults').classList.remove('d-none');
 
@@ -264,7 +305,11 @@ function renderQuote(d, base) {
     'Very High':{'bg':'#f8d7da','text':'#58151c','badge':'bg-danger'}
   };
   const c = colorMap[d.risk_category] || colorMap['Medium'];
-  const final = +(base * d.premium_multiplier).toFixed(2);
+
+  // NCB: 10% per year, capped at 40%
+  const ncbDiscount = Math.min(ncbYears * 0.10, 0.40);
+  const baseRisk = +(base * d.premium_multiplier).toFixed(2);
+  const final = +(baseRisk * (1 - ncbDiscount)).toFixed(2);
 
   const card = document.getElementById('quoteSummaryCard');
   card.style.background = c.bg;
@@ -307,12 +352,32 @@ function renderQuote(d, base) {
   const rows = [
     ['Base Premium', fmt(base), 'Market rate for your area'],
     ['Risk Multiplier', `× ${d.premium_multiplier}`, `${d.risk_category} risk classification`],
+  ];
+  if (ncbDiscount > 0) {
+    rows.push(['NCB Discount', `−${(ncbDiscount * 100).toFixed(0)}%`,
+      `${ncbYears} year${ncbYears > 1 ? 's' : ''} no-claims bonus`]);
+  }
+  rows.push(
     ['Claim Probability', `${Math.round(d.claim_probability*100)}%`, 'Predicted claim likelihood'],
     ['Risk Score', `${d.risk_score}/100`, 'ML model output'],
-  ];
+  );
   document.getElementById('breakdownTable').innerHTML = rows.map(([f,v,n]) =>
     `<tr><td>${f}</td><td class="fw-semibold">${v}</td><td class="small text-muted">${n}</td></tr>`
   ).join('');
+
+  // Factor contribution bars
+  const factors = d.factor_contributions || [];
+  const maxV = Math.max(...factors.map(f => f.value), 1);
+  document.getElementById('factorBars').innerHTML = factors.slice(0, 9).map(f => `
+    <div class="d-flex align-items-center gap-2 mb-2">
+      <div class="small text-muted text-end" style="width:195px;font-size:.78rem;flex-shrink:0;">${f.factor}</div>
+      <div class="flex-grow-1 bg-light rounded" style="height:8px;overflow:hidden;">
+        <div style="width:${Math.round(f.value / maxV * 100)}%;height:100%;
+                    background:${f.type === 'risk' ? '#ef4444' : '#22c55e'};
+                    border-radius:4px;transition:width .4s;"></div>
+      </div>
+      <div class="small fw-bold" style="width:36px;color:${f.type === 'risk' ? '#ef4444' : '#22c55e'};">${f.value}</div>
+    </div>`).join('');
 
   // Savings tips
   const savings = [];
@@ -323,7 +388,9 @@ function renderQuote(d, base) {
   if (d.premium_multiplier >= 1.75) {
     savings.push(`<li><i class="bi bi-check-circle-fill text-success me-2"></i>Switching to a <strong>lower-risk vehicle</strong> (sedan/van) could reduce premium by <strong>${fmt(final*0.2)}/year</strong>.</li>`);
   }
-  savings.push(`<li><i class="bi bi-check-circle-fill text-success me-2"></i>A <strong>3-year clean record</strong> qualifies for No-Claims Bonus — saving up to <strong>50%</strong> on renewal.</li>`);
+  if (ncbYears < 4) {
+    savings.push(`<li><i class="bi bi-check-circle-fill text-success me-2"></i>Reaching <strong>4+ years NCB</strong> saves an additional <strong>${fmt(baseRisk * (0.40 - ncbDiscount))}/year</strong> vs your current discount.</li>`);
+  }
   document.getElementById('savingsTips').innerHTML = `<ul class="mb-0">${savings.join('')}</ul>`;
 
   window.scrollTo({top: document.getElementById('quoteResults').offsetTop - 80, behavior:'smooth'});
