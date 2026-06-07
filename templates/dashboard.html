@@ -1,5 +1,9 @@
 {% extends "base.html" %}
 {% block title %}Analytics Dashboard – RiskGuard AI{% endblock %}
+{% block head %}
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+{% endblock %}
 
 {% block content %}
 <div class="container-fluid py-4 px-4">
@@ -9,7 +13,12 @@
       <h2><i class="bi bi-bar-chart-line text-primary me-2"></i>Analytics Dashboard</h2>
       <p>Real-time model performance, risk statistics and assessment trends</p>
     </div>
-    <div class="d-flex gap-2">
+    <div class="d-flex gap-2 align-items-center">
+      <span class="badge bg-success d-flex align-items-center gap-1" id="liveBadge" style="font-size:.72rem;">
+        <span style="width:6px;height:6px;border-radius:50%;background:#fff;animation:livePulse 1.5s infinite;"></span>
+        LIVE
+      </span>
+      <span class="text-muted small" id="lastUpdated"></span>
       <a href="/api/export-csv" class="btn btn-outline-success btn-sm"
          onclick="showToast('Downloading CSV…','success',2000)">
         <i class="bi bi-download me-1"></i>Export CSV
@@ -24,27 +33,51 @@
   {% if metrics %}
   <div class="row g-3 mb-4">
     <div class="col-6 col-md-3">
-      <div class="metric-card border-start border-primary border-4">
-        <div class="metric-label">Best Model</div>
-        <div class="metric-value text-primary" style="font-size:1.1rem;">{{ metrics.get('best_model','N/A') }}</div>
+      <div class="metric-card" style="border-top:3px solid #3b82f6;background:linear-gradient(135deg,rgba(59,130,246,.07),transparent);">
+        <div class="d-flex align-items-center justify-content-between mb-2">
+          <div class="metric-label">Best Model</div>
+          <div style="width:36px;height:36px;border-radius:10px;background:rgba(59,130,246,.15);display:flex;align-items:center;justify-content:center;">
+            <i class="bi bi-cpu-fill text-primary" style="font-size:1rem;"></i>
+          </div>
+        </div>
+        <div class="metric-value text-primary" style="font-size:1rem;">{{ metrics.get('best_model','N/A') }}</div>
+        <div style="font-size:.7rem;color:var(--muted);margin-top:.25rem;">Production model</div>
       </div>
     </div>
     <div class="col-6 col-md-3">
-      <div class="metric-card border-start border-success border-4">
-        <div class="metric-label">Test Accuracy</div>
+      <div class="metric-card" style="border-top:3px solid #10b981;background:linear-gradient(135deg,rgba(16,185,129,.07),transparent);">
+        <div class="d-flex align-items-center justify-content-between mb-2">
+          <div class="metric-label">Test Accuracy</div>
+          <div style="width:36px;height:36px;border-radius:10px;background:rgba(16,185,129,.15);display:flex;align-items:center;justify-content:center;">
+            <i class="bi bi-graph-up-arrow text-success" style="font-size:1rem;"></i>
+          </div>
+        </div>
         <div class="metric-value text-success">{{ "%.1f"|format(metrics.get('best_accuracy',0)*100) }}%</div>
+        <div style="font-size:.7rem;color:var(--muted);margin-top:.25rem;">On held-out test set</div>
       </div>
     </div>
     <div class="col-6 col-md-3">
-      <div class="metric-card border-start border-warning border-4">
-        <div class="metric-label">Training Samples</div>
-        <div class="metric-value text-warning">{{ metrics.get('train_size',0)|int }}</div>
+      <div class="metric-card" style="border-top:3px solid #f59e0b;background:linear-gradient(135deg,rgba(245,158,11,.07),transparent);">
+        <div class="d-flex align-items-center justify-content-between mb-2">
+          <div class="metric-label">Training Samples</div>
+          <div style="width:36px;height:36px;border-radius:10px;background:rgba(245,158,11,.15);display:flex;align-items:center;justify-content:center;">
+            <i class="bi bi-database-fill text-warning" style="font-size:1rem;"></i>
+          </div>
+        </div>
+        <div class="metric-value text-warning" data-counter="{{ metrics.get('train_size',0)|int }}" data-duration="1200">{{ metrics.get('train_size',0)|int }}</div>
+        <div style="font-size:.7rem;color:var(--muted);margin-top:.25rem;">Synthetic records</div>
       </div>
     </div>
     <div class="col-6 col-md-3">
-      <div class="metric-card border-start border-info border-4">
-        <div class="metric-label">Features Used</div>
+      <div class="metric-card" style="border-top:3px solid #0ea5e9;background:linear-gradient(135deg,rgba(14,165,233,.07),transparent);">
+        <div class="d-flex align-items-center justify-content-between mb-2">
+          <div class="metric-label">Features Used</div>
+          <div style="width:36px;height:36px;border-radius:10px;background:rgba(14,165,233,.15);display:flex;align-items:center;justify-content:center;">
+            <i class="bi bi-lightning-charge-fill text-info" style="font-size:1rem;"></i>
+          </div>
+        </div>
         <div class="metric-value text-info">12</div>
+        <div style="font-size:.7rem;color:var(--muted);margin-top:.25rem;">8 numeric + 4 categorical</div>
       </div>
     </div>
   </div>
@@ -102,8 +135,10 @@
   <div class="row g-4 mb-4">
     <div class="col-lg-6">
       <div class="chart-card h-100">
-        <div class="chart-card-header"><i class="bi bi-geo-alt me-2 text-warning"></i>Location vs Assessment Count</div>
-        <div class="chart-card-body"><canvas id="locationRiskChart" height="260"></canvas></div>
+        <div class="chart-card-header"><i class="bi bi-map me-2 text-warning"></i>Driver Location Map</div>
+        <div class="chart-card-body p-0" style="border-radius:0 0 16px 16px;overflow:hidden;">
+          <div id="leafletMap" style="height:280px;width:100%;border-radius:0 0 16px 16px;"></div>
+        </div>
       </div>
     </div>
     <div class="col-lg-6">
@@ -174,4 +209,69 @@
 
 {% block scripts %}
 <script src="{{ url_for('static', filename='js/dashboard.js') }}"></script>
+<style>
+@keyframes livePulse { 0%,100%{opacity:1;transform:scale(1)} 50%{opacity:.4;transform:scale(1.4)} }
+.leaflet-container { font-family:'Inter',sans-serif !important; }
+</style>
+<script>
+// ── Leaflet Map ──────────────────────────────────────
+function initMap() {
+  if (!document.getElementById('leafletMap')) return;
+  const map = L.map('leafletMap', { zoomControl:true, scrollWheelZoom:false })
+    .setView([54.0, -2.0], 5);
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    attribution:'© OpenStreetMap',
+    maxZoom:18
+  }).addTo(map);
+
+  // Location clusters with UK cities
+  const locations = {
+    'urban':    [{ lat:51.51, lng:-0.12, city:'London' },{ lat:53.48, lng:-2.24, city:'Manchester' },{ lat:52.48, lng:-1.90, city:'Birmingham' }],
+    'suburban': [{ lat:51.45, lng:-0.97, city:'Reading' },{ lat:52.63, lng:-1.13, city:'Leicester' },{ lat:53.80, lng:-1.55, city:'Leeds' }],
+    'rural':    [{ lat:54.97, lng:-1.62, city:'Newcastle' },{ lat:51.88, lng:-2.07, city:'Gloucester' }],
+    'highway':  [{ lat:52.20, lng:-0.12, city:'Cambridge' },{ lat:51.75, lng:-1.26, city:'Oxford' }]
+  };
+  const catColors = { urban:'#ef4444', suburban:'#10b981', rural:'#3b82f6', highway:'#f59e0b' };
+
+  fetch('/api/stats').then(r=>r.json()).then(data=>{
+    const dist = data.location_distribution || {};
+    Object.keys(locations).forEach(loc => {
+      const count = dist[loc] || 0;
+      locations[loc].forEach(pt => {
+        const r = Math.max(8, Math.min(40, count / 2));
+        L.circleMarker([pt.lat, pt.lng], {
+          radius: r, fillColor: catColors[loc], color:'#fff',
+          weight:2, opacity:1, fillOpacity:0.75
+        }).addTo(map).bindPopup(
+          '<strong>' + pt.city + '</strong><br>' +
+          '<span style="color:' + catColors[loc] + '">● ' + loc.charAt(0).toUpperCase()+loc.slice(1) + '</span><br>' +
+          count + ' assessments'
+        );
+      });
+    });
+    // Legend
+    const legend = L.control({ position:'bottomright' });
+    legend.onAdd = () => {
+      const d = L.DomUtil.create('div');
+      d.style.cssText = 'background:white;padding:8px 12px;border-radius:10px;box-shadow:0 2px 12px rgba(0,0,0,.15);font-size:12px;';
+      d.innerHTML = Object.keys(catColors).map(l =>
+        '<div><span style="color:'+catColors[l]+'">●</span> '+l.charAt(0).toUpperCase()+l.slice(1)+'</div>'
+      ).join('');
+      return d;
+    };
+    legend.addTo(map);
+  }).catch(()=>{});
+}
+
+// Auto-refresh every 30 seconds
+setInterval(() => {
+  loadAllCharts();
+  document.getElementById('lastUpdated').textContent = 'Updated: ' + new Date().toLocaleTimeString();
+}, 30000);
+
+document.addEventListener('DOMContentLoaded', () => {
+  document.getElementById('lastUpdated').textContent = 'Updated: ' + new Date().toLocaleTimeString();
+  initMap();
+});
+</script>
 {% endblock %}

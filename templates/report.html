@@ -10,7 +10,7 @@
       <div class="d-flex align-items-center justify-content-between flex-wrap gap-3 mb-4 no-print">
         <div>
           <h2 class="fw-bold mb-1">
-            <i class="bi bi-file-earmark-bar-graph text-primary me-2"></i>Assessment Report
+            <i class="bi bi-file-earmark-bar-graph text-primary me-2"></i>{{ t.report_title }}
           </h2>
           <p class="text-muted mb-0">
             #{{ assessment.id }} &nbsp;&bull;&nbsp; {{ assessment.created_at }}
@@ -18,16 +18,22 @@
         </div>
         <div class="d-flex gap-2 flex-wrap">
           <a href="/history" class="btn btn-outline-secondary btn-sm">
-            <i class="bi bi-arrow-left me-1"></i>Back
+            <i class="bi bi-arrow-left me-1"></i>{{ t.report_back }}
           </a>
           <button class="btn btn-outline-primary btn-sm" onclick="window.print()">
-            <i class="bi bi-printer me-1"></i>Print
+            <i class="bi bi-printer me-1"></i>{{ t.report_print }}
           </button>
+          <a href="/report/{{ assessment.id }}/pdf" class="btn btn-sm btn-danger">
+            <i class="bi bi-file-earmark-pdf me-1"></i>{{ t.report_pdf }}
+          </a>
+          <a href="/certificate/{{ assessment.id }}" class="btn btn-sm btn-success">
+            <i class="bi bi-award me-1"></i>{% if lang=='uz' %}Sertifikat{% else %}Certificate{% endif %}
+          </a>
           <a href="/quote" class="btn btn-outline-info btn-sm">
-            <i class="bi bi-calculator me-1"></i>Get Quote
+            <i class="bi bi-calculator me-1"></i>{{ t.report_quote }}
           </a>
           <a href="/assessment" class="btn btn-warning btn-sm fw-semibold">
-            <i class="bi bi-plus-circle me-1"></i>New Assessment
+            <i class="bi bi-plus-circle me-1"></i>{{ t.nav_new_assessment }}
           </a>
         </div>
       </div>
@@ -35,54 +41,81 @@
       <!-- Risk Score Card -->
       {% set cat = assessment.risk_category %}
       {% set score = assessment.risk_score %}
+      {% set cat_color = {'Low':'#10b981','Medium':'#f59e0b','High':'#ef4444','Very High':'#7c3aed'}[cat] %}
       <div class="report-score-card
         {% if cat=='Low' %}score-low{% elif cat=='Medium' %}score-medium
-        {% elif cat=='High' %}score-high{% else %}score-veryhigh{% endif %} mb-4 animate-fade-in">
+        {% elif cat=='High' %}score-high{% else %}score-veryhigh{% endif %} mb-4 animate-fade-in"
+        style="box-shadow:0 8px 40px {{ cat_color }}22, 0 2px 8px rgba(0,0,0,.1);border-width:1.5px;">
+
+        <!-- Top banner: category label -->
+        <div class="d-flex justify-content-between align-items-center mb-4 flex-wrap gap-2">
+          <div class="d-flex align-items-center gap-3">
+            <div style="width:52px;height:52px;border-radius:16px;background:{{ cat_color }};display:flex;align-items:center;justify-content:center;box-shadow:0 4px 20px {{ cat_color }}60;font-size:1.4rem;color:#fff;animation:scoreGlow 2.5s ease-in-out infinite;">
+              {% if cat=='Low' %}<i class="bi bi-shield-fill-check"></i>
+              {% elif cat=='Medium' %}<i class="bi bi-shield-half"></i>
+              {% elif cat=='High' %}<i class="bi bi-exclamation-triangle-fill"></i>
+              {% else %}<i class="bi bi-x-octagon-fill"></i>{% endif %}
+            </div>
+            <div>
+              <div style="font-size:.72rem;color:var(--muted);text-transform:uppercase;letter-spacing:.08em;">Risk Assessment Result</div>
+              <div style="font-size:1.3rem;font-weight:800;color:{{ cat_color }};">{{ cat }} Risk</div>
+            </div>
+          </div>
+          <span class="badge fs-6 px-3 py-2 rg-badge-{{ cat | lower | replace(' ','-') }}" style="font-size:.85rem!important;">
+            Score: {{ score }}/100
+          </span>
+        </div>
+
         <div class="row align-items-center g-3">
 
           <!-- Gauge -->
           <div class="col-md-4 text-center">
-            <div id="reportGauge" class="d-inline-block mb-2"></div>
-            <div>
-              <span class="badge fs-6 px-3 py-2 rg-badge-{{ cat | lower | replace(' ','-') }}">
-                {{ cat }} Risk
-              </span>
-            </div>
+            <div id="reportGauge" class="d-inline-block mb-2" style="filter:drop-shadow(0 0 16px {{ cat_color }}55);"></div>
           </div>
 
           <!-- KPIs -->
           <div class="col-md-8">
             <div class="row g-3 text-center mb-3">
-              <div class="col-4">
-                <div class="kpi-box">
-                  <div class="kpi-box-val text-primary">{{ assessment.premium_multiplier }}×</div>
-                  <div class="kpi-box-lbl">Premium Multiplier</div>
+              <div class="col-3">
+                <div class="kpi-box" style="border-top:2px solid #3b82f6;">
+                  <div class="kpi-box-val text-primary" style="font-size:1.6rem;">{{ assessment.premium_multiplier }}×</div>
+                  <div class="kpi-box-lbl">{{ t.report_premium }}</div>
                 </div>
               </div>
-              <div class="col-4">
-                <div class="kpi-box">
-                  <div class="kpi-box-val text-warning">{{ "%.0f"|format(assessment.claim_probability * 100) }}%</div>
-                  <div class="kpi-box-lbl">Claim Probability</div>
+              <div class="col-3">
+                <div class="kpi-box" style="border-top:2px solid #f59e0b;">
+                  <div class="kpi-box-val text-warning" style="font-size:1.6rem;">{{ "%.0f"|format(assessment.claim_probability * 100) }}%</div>
+                  <div class="kpi-box-lbl">{{ t.report_claim }}</div>
                 </div>
               </div>
-              <div class="col-4">
-                <div class="kpi-box">
-                  <div class="kpi-box-val {% if assessment.previous_accidents > 0 %}text-danger{% else %}text-success{% endif %}">{{ assessment.previous_accidents }}</div>
-                  <div class="kpi-box-lbl">Prior Accidents</div>
+              <div class="col-3">
+                <div class="kpi-box" style="border-top:2px solid {% if assessment.previous_accidents > 0 %}#ef4444{% else %}#10b981{% endif %};">
+                  <div class="kpi-box-val {% if assessment.previous_accidents > 0 %}text-danger{% else %}text-success{% endif %}" style="font-size:1.6rem;">{{ assessment.previous_accidents }}</div>
+                  <div class="kpi-box-lbl">{{ t.report_prior_acc }}</div>
+                </div>
+              </div>
+              <div class="col-3">
+                <div class="kpi-box" style="border-top:2px solid #0ea5e9;">
+                  <div class="kpi-box-val text-info" style="font-size:1.6rem;">{{ assessment.confidence }}%</div>
+                  <div class="kpi-box-lbl">{% if lang=='uz' %}Model ishonchi{% else %}Confidence{% endif %}</div>
                 </div>
               </div>
             </div>
-            <!-- Risk bar -->
+            <!-- Risk bar with color zones -->
             <div class="px-2">
-              <div class="progress" style="height:12px;border-radius:8px;">
+              <div style="position:relative;height:16px;border-radius:12px;overflow:hidden;background:linear-gradient(90deg,#10b981 0%,#f59e0b 25%,#ef4444 50%,#7c3aed 100%);opacity:.25;margin-bottom:4px;"></div>
+              <div class="progress" style="height:16px;border-radius:12px;margin-top:-20px;">
                 <div class="progress-bar
                   {% if cat=='Low' %}bg-success{% elif cat=='Medium' %}bg-warning
                   {% elif cat=='High' %}bg-danger{% else %}bg-danger{% endif %} rounded"
-                  style="width:{{ score }}%;font-size:.72rem;transition:width 1.2s ease;"
+                  style="width:{{ score }}%;font-size:.72rem;transition:width 1.4s cubic-bezier(.4,0,.2,1);"
                   role="progressbar">{{ score }}/100</div>
               </div>
-              <div class="d-flex justify-content-between small text-muted mt-1">
-                <span>Low (0)</span><span>Medium (26)</span><span>High (51)</span><span>VH (76–100)</span>
+              <div class="d-flex justify-content-between" style="font-size:.67rem;color:var(--muted);margin-top:.3rem;">
+                <span style="color:#10b981;">Low</span>
+                <span style="color:#f59e0b;">Medium</span>
+                <span style="color:#ef4444;">High</span>
+                <span style="color:#7c3aed;">Very High</span>
               </div>
             </div>
           </div>
@@ -93,18 +126,18 @@
       <div class="row g-4 mb-4">
         <div class="col-md-6">
           <div class="card shadow-sm h-100 animate-fade-in">
-            <div class="card-header rg-card-header"><i class="bi bi-person me-2"></i>Driver Profile</div>
+            <div class="card-header rg-card-header"><i class="bi bi-person me-2"></i>{{ t.report_driver }}</div>
             <div class="card-body">
               <table class="table table-sm table-borderless mb-0">
-                <tr><td class="text-muted">Age</td><td class="fw-semibold">{{ assessment.driver_age }} years</td></tr>
-                <tr><td class="text-muted">Experience</td><td class="fw-semibold">{{ assessment.driving_experience }} years</td></tr>
-                <tr><td class="text-muted">Gender</td><td class="fw-semibold text-capitalize">{{ assessment.gender }}</td></tr>
-                <tr><td class="text-muted">Marital Status</td><td class="fw-semibold text-capitalize">{{ assessment.marital_status }}</td></tr>
-                <tr><td class="text-muted">Credit Score</td><td class="fw-semibold">
+                <tr><td class="text-muted">{{ t.report_age }}</td><td class="fw-semibold">{{ assessment.driver_age }} {{ t.years }}</td></tr>
+                <tr><td class="text-muted">{{ t.report_experience }}</td><td class="fw-semibold">{{ assessment.driving_experience }} {{ t.years }}</td></tr>
+                <tr><td class="text-muted">{{ t.report_gender }}</td><td class="fw-semibold text-capitalize">{{ assessment.gender }}</td></tr>
+                <tr><td class="text-muted">{{ t.report_marital }}</td><td class="fw-semibold text-capitalize">{{ assessment.marital_status }}</td></tr>
+                <tr><td class="text-muted">{{ t.report_credit }}</td><td class="fw-semibold">
                   {{ assessment.credit_score }}
-                  {% if assessment.credit_score >= 700 %}<span class="badge bg-success ms-1 small">Good</span>
-                  {% elif assessment.credit_score >= 600 %}<span class="badge bg-warning ms-1 small">Fair</span>
-                  {% else %}<span class="badge bg-danger ms-1 small">Poor</span>{% endif %}
+                  {% if assessment.credit_score >= 700 %}<span class="badge bg-success ms-1 small">{{ t.good }}</span>
+                  {% elif assessment.credit_score >= 600 %}<span class="badge bg-warning ms-1 small">{{ t.fair }}</span>
+                  {% else %}<span class="badge bg-danger ms-1 small">{{ t.poor }}</span>{% endif %}
                 </td></tr>
               </table>
             </div>
@@ -112,13 +145,13 @@
         </div>
         <div class="col-md-6">
           <div class="card shadow-sm h-100 animate-fade-in-2">
-            <div class="card-header rg-card-header"><i class="bi bi-car-front me-2"></i>Vehicle &amp; Location</div>
+            <div class="card-header rg-card-header"><i class="bi bi-car-front me-2"></i>{{ t.report_vehicle }}</div>
             <div class="card-body">
               <table class="table table-sm table-borderless mb-0">
-                <tr><td class="text-muted">Vehicle Type</td><td class="fw-semibold text-capitalize">{{ assessment.vehicle_type }}</td></tr>
-                <tr><td class="text-muted">Vehicle Age</td><td class="fw-semibold">{{ assessment.vehicle_age }} years</td></tr>
-                <tr><td class="text-muted">Annual Mileage</td><td class="fw-semibold">{{ "{:,}".format(assessment.annual_mileage) }} miles</td></tr>
-                <tr><td class="text-muted">Primary Location</td><td class="fw-semibold text-capitalize">{{ assessment.primary_location }}</td></tr>
+                <tr><td class="text-muted">{{ t.report_vehicle_type }}</td><td class="fw-semibold text-capitalize">{{ assessment.vehicle_type }}</td></tr>
+                <tr><td class="text-muted">{{ t.report_vehicle_age }}</td><td class="fw-semibold">{{ assessment.vehicle_age }} {{ t.years }}</td></tr>
+                <tr><td class="text-muted">{{ t.report_mileage }}</td><td class="fw-semibold">{{ "{:,}".format(assessment.annual_mileage) }} {{ t.miles }}</td></tr>
+                <tr><td class="text-muted">{{ t.report_location }}</td><td class="fw-semibold text-capitalize">{{ assessment.primary_location }}</td></tr>
               </table>
             </div>
           </div>
@@ -127,7 +160,7 @@
         <!-- Behaviour row -->
         <div class="col-12">
           <div class="card shadow-sm animate-fade-in">
-            <div class="card-header rg-card-header"><i class="bi bi-activity me-2"></i>Driving History &amp; Behaviour</div>
+            <div class="card-header rg-card-header"><i class="bi bi-activity me-2"></i>{{ t.report_behaviour }}</div>
             <div class="card-body">
               <div class="row g-3 text-center">
                 <div class="col-6 col-md-3">
@@ -135,7 +168,7 @@
                     <div class="beh-val {% if assessment.previous_accidents > 0 %}text-danger{% else %}text-success{% endif %}">
                       {{ assessment.previous_accidents }}
                     </div>
-                    <div class="beh-lbl">Accidents (3yr)</div>
+                    <div class="beh-lbl">{{ t.report_accidents }}</div>
                   </div>
                 </div>
                 <div class="col-6 col-md-3">
@@ -143,7 +176,7 @@
                     <div class="beh-val {% if assessment.traffic_violations > 1 %}text-warning{% elif assessment.traffic_violations > 0 %}text-warning{% else %}text-success{% endif %}">
                       {{ assessment.traffic_violations }}
                     </div>
-                    <div class="beh-lbl">Violations (3yr)</div>
+                    <div class="beh-lbl">{{ t.report_violations }}</div>
                   </div>
                 </div>
                 <div class="col-6 col-md-3">
@@ -151,13 +184,13 @@
                     <div class="beh-val {% if assessment.night_driving_pct > 40 %}text-warning{% else %}text-success{% endif %}">
                       {{ assessment.night_driving_pct }}%
                     </div>
-                    <div class="beh-lbl">Night Driving</div>
+                    <div class="beh-lbl">{{ t.report_night }}</div>
                   </div>
                 </div>
                 <div class="col-6 col-md-3">
                   <div class="beh-kpi">
                     <div class="beh-val">{{ "{:,}".format(assessment.annual_mileage) }}</div>
-                    <div class="beh-lbl">Annual Miles</div>
+                    <div class="beh-lbl">{{ t.report_miles }}</div>
                   </div>
                 </div>
               </div>
@@ -170,7 +203,7 @@
       {% if assessment.recommendations %}
       <div class="card shadow-sm mb-4 animate-fade-in">
         <div class="card-header rg-card-header">
-          <i class="bi bi-lightbulb-fill me-2" style="color:var(--accent);"></i>Personalised Recommendations
+          <i class="bi bi-lightbulb-fill me-2" style="color:var(--accent);"></i>{{ t.report_recommendations }}
         </div>
         <div class="card-body">
           <div class="row g-2">
@@ -187,19 +220,98 @@
       </div>
       {% endif %}
 
+      <!-- Benchmark -->
+      <div class="card shadow-sm mb-4 animate-fade-in">
+        <div class="card-header rg-card-header">
+          <i class="bi bi-trophy-fill me-2" style="color:var(--accent);"></i>
+          {% if lang=='uz' %}Boshqalar bilan taqqoslash{% else %}Benchmark Comparison{% endif %}
+        </div>
+        <div class="card-body">
+          <div class="row align-items-center g-3">
+            <div class="col-md-5 text-center">
+              <div style="font-size:3rem;font-weight:900;color:var(--accent);">{{ assessment.benchmark_pct }}%</div>
+              <div class="text-muted small">{% if lang=='uz'%}haydovchilardan yaxshiroq{% else %}of drivers you outperform{% endif %}</div>
+            </div>
+            <div class="col-md-7">
+              <div class="mb-2 small fw-semibold">
+                {% set bp = assessment.benchmark_pct %}
+                {% if bp >= 75 %}🏆 {% if lang=='uz'%}Ajoyib! Eng yaxshi haydovchilar orasida{% else %}Excellent! You're among the top drivers{% endif %}
+                {% elif bp >= 50 %}👍 {% if lang=='uz'%}O'rtachadan yuqori{% else %}Above average — keep it up!{% endif %}
+                {% elif bp >= 25 %}⚠️ {% if lang=='uz'%}O'rtacha daraja{% else %}Below average — room for improvement{% endif %}
+                {% else %}🔴 {% if lang=='uz'%}Yuqori risk — yaxshilash zarur{% else %}High risk — improvement needed{% endif %}{% endif %}
+              </div>
+              <div class="progress" style="height:14px;border-radius:8px;">
+                <div class="progress-bar {% if assessment.benchmark_pct>=75%}bg-success{% elif assessment.benchmark_pct>=50%}bg-warning{% else%}bg-danger{% endif %}"
+                     style="width:{{ assessment.benchmark_pct }}%;border-radius:8px;">{{ assessment.benchmark_pct }}%</div>
+              </div>
+              <div class="d-flex justify-content-between small text-muted mt-1">
+                <span>{% if lang=='uz'%}Eng yomon{% else %}Worst{% endif %}</span>
+                <span>{% if lang=='uz'%}Eng yaxshi{% else %}Best{% endif %}</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Improvement Roadmap -->
+      {% if assessment.roadmap %}
+      <div class="card shadow-sm mb-4 animate-fade-in">
+        <div class="card-header rg-card-header">
+          <i class="bi bi-map-fill me-2 text-success"></i>
+          {% if lang=='uz'%}Shaxsiy yaxshilanish yo'xaritasi{% else %}Personal Improvement Roadmap{% endif %}
+        </div>
+        <div class="card-body">
+          <p class="text-muted small mb-3">
+            {% if lang=='uz'%}Quyidagi o'zgarishlarni amalga oshiring va ballingizni kamaytiring:
+            {% else %}Make these changes to significantly reduce your risk score:{% endif %}
+          </p>
+          {% for step in assessment.roadmap %}
+          <div class="d-flex gap-3 align-items-start p-3 rounded-3 mb-2" style="background:var(--bg);border:1px solid var(--border);">
+            <div class="rounded-circle d-flex align-items-center justify-content-center fw-bold text-white"
+                 style="width:32px;height:32px;min-width:32px;background:var(--accent);font-size:.85rem;">{{ loop.index }}</div>
+            <div class="flex-grow-1">
+              <div class="fw-semibold">{{ step.action }}</div>
+              <div class="small text-muted mt-1">{{ step.label }}: <s>{{ step.current }}</s> → <strong>{{ step.target }}</strong></div>
+            </div>
+            <div class="text-end">
+              <span class="badge bg-success fs-6">-{{ step.saving }} pts</span>
+              <div class="small text-muted mt-1">→ {{ step.new_score }} ({{ step.new_category }})</div>
+            </div>
+          </div>
+          {% endfor %}
+        </div>
+      </div>
+      {% endif %}
+
+      <!-- Score Trend -->
+      {% if assessment.trend and assessment.trend|length > 1 %}
+      <div class="card shadow-sm mb-4 animate-fade-in">
+        <div class="card-header rg-card-header">
+          <i class="bi bi-graph-up me-2 text-info"></i>
+          {% if lang=='uz'%}Risk bali trendi{% else %}Risk Score Trend{% endif %}
+        </div>
+        <div class="card-body">
+          <canvas id="trendChart" height="100"></canvas>
+        </div>
+      </div>
+      {% endif %}
+
       <!-- Actions -->
       <div class="d-flex gap-3 justify-content-end flex-wrap no-print">
+        <button class="btn btn-outline-info" onclick="document.getElementById('emailModal').style.display='flex'">
+          <i class="bi bi-envelope me-1"></i>{% if lang=='uz'%}Email{% else %}Email{% endif %}
+        </button>
+        <a href="/simulator" class="btn btn-outline-warning">
+          <i class="bi bi-sliders me-1"></i>{% if lang=='uz'%}Simulyator{% else %}Simulator{% endif %}
+        </a>
         <a href="/history" class="btn btn-outline-secondary">
-          <i class="bi bi-arrow-left me-1"></i>History
+          <i class="bi bi-arrow-left me-1"></i>{% if lang=='uz'%}Tarix{% else %}History{% endif %}
         </a>
         <a href="/chatbot" class="btn btn-outline-info">
-          <i class="bi bi-robot me-1"></i>Ask AI
-        </a>
-        <a href="/compare" class="btn btn-outline-success">
-          <i class="bi bi-arrow-left-right me-1"></i>Compare
+          <i class="bi bi-robot me-1"></i>{% if lang=='uz'%}AI dan so'rash{% else %}Ask AI{% endif %}
         </a>
         <a href="/assessment" class="btn btn-warning fw-semibold">
-          <i class="bi bi-plus-circle me-1"></i>New Assessment
+          <i class="bi bi-plus-circle me-1"></i>{{ t.nav_new_assessment }}
         </a>
       </div>
 
@@ -208,12 +320,73 @@
 </div>
 {% endblock %}
 
+<!-- Email Modal -->
+<div id="emailModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:9999;align-items:center;justify-content:center;">
+  <div style="background:var(--card);border-radius:20px;padding:2rem;width:380px;max-width:90%;box-shadow:0 24px 80px rgba(0,0,0,.3);">
+    <h5 class="fw-bold mb-3"><i class="bi bi-envelope-fill me-2 text-info"></i>{% if lang=='uz'%}Email yuborish{% else %}Send by Email{% endif %}</h5>
+    <input type="email" id="emailInput" class="form-control mb-3" placeholder="recipient@email.com">
+    <div class="d-flex gap-2">
+      <button class="btn btn-secondary flex-grow-1" onclick="document.getElementById('emailModal').style.display='none'">
+        {% if lang=='uz'%}Bekor{% else %}Cancel{% endif %}
+      </button>
+      <button class="btn btn-info flex-grow-1 fw-bold text-white" onclick="sendEmail({{ assessment.id }})">
+        <i class="bi bi-send me-1"></i>{% if lang=='uz'%}Yuborish{% else %}Send{% endif %}
+      </button>
+    </div>
+  </div>
+</div>
+
 {% block scripts %}
 <script>
+function sendEmail(id) {
+  const email = document.getElementById('emailInput').value.trim();
+  if (!email) return;
+  fetch(`/api/send-email/${id}`, {
+    method:'POST', headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({email})
+  }).then(r=>r.json()).then(d=>{
+    document.getElementById('emailModal').style.display='none';
+    if(d.status==='sent') showToast('Email yuborildi: '+d.to,'success',3000);
+    else showToast(d.error||'Xato','danger',4000);
+  });
+}
 document.addEventListener('DOMContentLoaded', function() {
   if (typeof drawGauge === 'function') {
     drawGauge('reportGauge', {{ assessment.risk_score }}, '{{ assessment.risk_category }}');
   }
+
+  {% if assessment.trend and assessment.trend|length > 1 %}
+  const trendCtx = document.getElementById('trendChart');
+  if (trendCtx) {
+    const labels = {{ assessment.trend | map(attribute='date') | list | tojson }};
+    const scores = {{ assessment.trend | map(attribute='score') | list | tojson }};
+    new Chart(trendCtx, {
+      type: 'line',
+      data: {
+        labels: labels,
+        datasets: [{
+          label: '{% if lang=="uz" %}Risk bali{% else %}Risk Score{% endif %}',
+          data: scores,
+          borderColor: '#f59e0b',
+          backgroundColor: 'rgba(245,158,11,.1)',
+          borderWidth: 3,
+          pointBackgroundColor: '#f59e0b',
+          pointRadius: 5,
+          tension: 0.3,
+          fill: true,
+        }]
+      },
+      options: {
+        responsive: true,
+        plugins: { legend: { display: false } },
+        scales: {
+          y: { min: 0, max: 100, grid: { color: 'rgba(0,0,0,.05)' } },
+          x: { grid: { display: false } }
+        }
+      }
+    });
+  }
+  {% endif %}
 });
 </script>
 {% endblock %}

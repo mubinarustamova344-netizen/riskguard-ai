@@ -237,11 +237,23 @@ function renderResult(data) {
     '<canvas id="factorContribChart" style="max-height:220px;"></canvas>' +
     recsHtml;
 
-  // Draw gauge + factor chart after DOM settles
+  // ── Radar chart HTML ──
+  body.innerHTML += '<hr><h6 class="fw-semibold mb-2"><i class="bi bi-hexagon me-1 text-info"></i>Driver Risk Profile (Radar)</h6>' +
+    '<canvas id="radarChart" style="max-height:260px;"></canvas>';
+
+  // Draw gauge + factor chart + radar after DOM settles
   var factors = data.factor_contributions || [];
   setTimeout(function() {
     if (typeof drawGauge === 'function') drawGauge('resultGauge', data.risk_score, data.risk_category);
     drawFactorChart(factors);
+    drawRadarChart(data);
+    // Konfetti for Low Risk!
+    if (data.risk_category === 'Low' && typeof confetti === 'function') {
+      confetti({ particleCount: 180, spread: 80, origin: { y: 0.5 },
+        colors: ['#ff9f0a','#10b981','#3b82f6','#7c3aed','#f87171'] });
+      setTimeout(() => confetti({ particleCount: 80, angle: 60, spread: 55, origin: { x: 0 } }), 400);
+      setTimeout(() => confetti({ particleCount: 80, angle: 120, spread: 55, origin: { x: 1 } }), 600);
+    }
   }, 200);
 }
 
@@ -288,6 +300,52 @@ function drawFactorChart(factors) {
   } catch(err) {
     console.error('Factor chart error:', err);
   }
+}
+
+var radarInstance = null;
+function drawRadarChart(data) {
+  if (radarInstance) { try { radarInstance.destroy(); } catch(e){} radarInstance = null; }
+  var canvas = document.getElementById('radarChart');
+  if (!canvas || typeof Chart === 'undefined') return;
+
+  // Normalize each factor to 0-100 scale for radar
+  var age = data.risk_score; // placeholder values based on risk factors
+  var vals = [
+    Math.min(100, (data.claim_probability || 0) * 100),
+    Math.min(100, (data.premium_multiplier - 1) / 1.3 * 100),
+    Math.min(100, data.risk_score),
+    Math.min(100, ((data.factor_contributions || []).filter(f=>f.type==='risk').reduce((a,b)=>a+b.value,0))/50*100),
+    Math.min(100, 100 - (data.confidence || 85)),
+    Math.min(100, data.risk_score * 0.8)
+  ];
+
+  try {
+    radarInstance = new Chart(canvas, {
+      type: 'radar',
+      data: {
+        labels: ['Claim Risk','Premium Level','Overall Score','Risk Factors','Uncertainty','Profile Risk'],
+        datasets: [{
+          label: 'Driver Profile',
+          data: vals,
+          backgroundColor: 'rgba(255,159,10,.15)',
+          borderColor: '#ff9f0a',
+          borderWidth: 2.5,
+          pointBackgroundColor: '#ff9f0a',
+          pointRadius: 4,
+        }]
+      },
+      options: {
+        responsive: true,
+        scales: { r: {
+          beginAtZero: true, max: 100,
+          grid: { color: 'rgba(0,0,0,.06)' },
+          pointLabels: { font: { size: 11 }, color: '#64748b' },
+          ticks: { display: false }
+        }},
+        plugins: { legend: { display: false } }
+      }
+    });
+  } catch(e) {}
 }
 
 function renderError(msg) {

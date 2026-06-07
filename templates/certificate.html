@@ -1,0 +1,194 @@
+{% extends "base.html" %}
+{% block title %}Risk Certificate #{{ a.id }} – RiskGuard AI{% endblock %}
+{% block head %}
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800;900&display=swap');
+.cert-wrap { display:flex; justify-content:center; align-items:center; padding:2rem 1rem; }
+.cert {
+  width:780px; max-width:100%;
+  background:#fff;
+  border-radius:28px;
+  overflow:hidden;
+  box-shadow: 0 24px 80px rgba(0,0,0,.2);
+  font-family:'Inter',sans-serif;
+  position:relative;
+}
+.cert-header {
+  background: linear-gradient(135deg,#04080f 0%,#0f1e35 50%,#04080f 100%);
+  padding:2.5rem 3rem 2rem;
+  position:relative;
+  overflow:hidden;
+}
+.cert-header::before {
+  content:'';
+  position:absolute;
+  top:-60px;right:-60px;
+  width:220px;height:220px;
+  border-radius:50%;
+  background:rgba(255,159,10,.08);
+}
+.cert-header::after {
+  content:'';
+  position:absolute;
+  bottom:-40px;left:-40px;
+  width:160px;height:160px;
+  border-radius:50%;
+  background:rgba(0,212,255,.06);
+}
+.cert-logo { display:flex; align-items:center; gap:.75rem; margin-bottom:1.5rem; }
+.cert-logo-icon {
+  width:44px;height:44px;
+  background:linear-gradient(135deg,#ff9f0a,#ffcc44);
+  border-radius:12px;
+  display:flex;align-items:center;justify-content:center;
+  font-size:1.3rem;color:#04080f;
+  box-shadow:0 4px 16px rgba(255,159,10,.4);
+}
+.cert-title { font-size:1.6rem; font-weight:900; color:#fff; margin-bottom:.25rem; }
+.cert-subtitle { color:rgba(255,255,255,.5); font-size:.85rem; letter-spacing:.06em; text-transform:uppercase; }
+.cert-issued { color:rgba(255,255,255,.4); font-size:.78rem; margin-top:1rem; }
+.cert-body { padding:2rem 3rem; }
+.cert-score-ring {
+  width:140px;height:140px;
+  border-radius:50%;
+  border:10px solid;
+  display:flex;flex-direction:column;align-items:center;justify-content:center;
+  margin:0 auto 1.5rem;
+}
+.cert-score-num { font-size:2.8rem;font-weight:900;line-height:1; }
+.cert-score-lbl { font-size:.7rem;opacity:.6;margin-top:.2rem;text-transform:uppercase; }
+.cert-cat {
+  display:inline-block;
+  padding:.5rem 1.5rem;
+  border-radius:40px;
+  font-weight:800;font-size:1rem;
+  margin-bottom:1.5rem;
+}
+.cert-grid { display:grid;grid-template-columns:1fr 1fr 1fr;gap:1rem;margin-bottom:1.5rem; }
+.cert-item { text-align:center;padding:.75rem;border-radius:14px;background:#f8fafc;border:1px solid #e2e8f0; }
+.cert-item-val { font-size:1.3rem;font-weight:800;margin-bottom:.2rem; }
+.cert-item-lbl { font-size:.7rem;color:#64748b;text-transform:uppercase;letter-spacing:.05em; }
+.cert-footer {
+  background:linear-gradient(135deg,#f8fafc,#f0f4f8);
+  padding:1.25rem 3rem;
+  display:flex;justify-content:space-between;align-items:center;
+  border-top:1px solid #e2e8f0;
+}
+.cert-id { font-size:.78rem;color:#94a3b8;font-family:monospace; }
+.cert-verify { font-size:.72rem;color:#94a3b8; }
+.qr-placeholder {
+  width:56px;height:56px;
+  background:linear-gradient(135deg,#ff9f0a20,#3b82f620);
+  border:1px solid #e2e8f0;
+  border-radius:8px;
+  display:flex;align-items:center;justify-content:center;
+  font-size:1.4rem;
+}
+@media print {
+  .no-print { display:none!important; }
+  .cert { box-shadow:none; }
+  body { background:#fff!important; }
+}
+</style>
+{% endblock %}
+
+{% block content %}
+{% set cat = a.risk_category %}
+{% set colors = {'Low':'#10b981','Medium':'#f59e0b','High':'#ef4444','Very High':'#7c3aed'} %}
+{% set clr = colors[cat] %}
+
+<!-- Action bar -->
+<div class="container py-3 no-print">
+  <div class="d-flex gap-2 flex-wrap align-items-center">
+    <a href="/report/{{ a.id }}" class="btn btn-outline-secondary btn-sm">
+      <i class="bi bi-arrow-left me-1"></i>{% if lang=='uz' %}Orqaga{% else %}Back{% endif %}
+    </a>
+    <button class="btn btn-warning btn-sm fw-bold" onclick="window.print()">
+      <i class="bi bi-printer me-1"></i>{% if lang=='uz' %}Chop etish{% else %}Print{% endif %}
+    </button>
+    <a href="/report/{{ a.id }}/pdf" class="btn btn-danger btn-sm">
+      <i class="bi bi-file-earmark-pdf me-1"></i>PDF
+    </a>
+  </div>
+</div>
+
+<!-- Certificate -->
+<div class="cert-wrap">
+<div class="cert">
+
+  <!-- Header -->
+  <div class="cert-header">
+    <div class="cert-logo">
+      <div class="cert-logo-icon"><i class="bi bi-shield-check"></i></div>
+      <div>
+        <div style="color:#fff;font-weight:800;font-size:1.1rem;">RiskGuard <span style="color:#ff9f0a;">AI</span></div>
+        <div style="color:rgba(255,255,255,.4);font-size:.7rem;letter-spacing:.08em;">RISK INTELLIGENCE PLATFORM</div>
+      </div>
+    </div>
+    <div class="cert-title">Risk Assessment Certificate</div>
+    <div class="cert-subtitle">Official Insurance Risk Evaluation</div>
+    <div class="cert-issued">
+      Issued: {{ a.created_at.strftime('%d %B %Y at %H:%M') }} &nbsp;|&nbsp;
+      Certificate ID: RG-{{ '%06d' | format(a.id) }}
+    </div>
+  </div>
+
+  <!-- Body -->
+  <div class="cert-body text-center">
+
+    <!-- Score ring -->
+    <div class="cert-score-ring" style="border-color:{{ clr }}20;color:{{ clr }};">
+      <span class="cert-score-num" style="color:{{ clr }};">{{ a.risk_score }}</span>
+      <span class="cert-score-lbl">Risk Score</span>
+    </div>
+
+    <div class="cert-cat" style="background:{{ clr }}18;color:{{ clr }};border:2px solid {{ clr }}35;">
+      {{ cat }} Risk
+    </div>
+
+    <!-- KPI grid -->
+    <div class="cert-grid">
+      <div class="cert-item">
+        <div class="cert-item-val" style="color:#ff9f0a;">{{ a.premium_multiplier }}×</div>
+        <div class="cert-item-lbl">Premium Multiplier</div>
+      </div>
+      <div class="cert-item">
+        <div class="cert-item-val" style="color:#3b82f6;">{{ "%.0f"|format(a.claim_probability * 100) }}%</div>
+        <div class="cert-item-lbl">Claim Probability</div>
+      </div>
+      <div class="cert-item">
+        <div class="cert-item-val" style="color:#10b981;">{{ a.driving_experience }}yr</div>
+        <div class="cert-item-lbl">Experience</div>
+      </div>
+    </div>
+
+    <!-- Driver summary -->
+    <div style="background:#f8fafc;border-radius:16px;padding:1rem 1.5rem;text-align:left;border:1px solid #e2e8f0;">
+      <div class="row g-2 small">
+        <div class="col-6"><span class="text-muted">Age:</span> <strong>{{ a.driver_age }} years</strong></div>
+        <div class="col-6"><span class="text-muted">Gender:</span> <strong class="text-capitalize">{{ a.gender }}</strong></div>
+        <div class="col-6"><span class="text-muted">Vehicle:</span> <strong class="text-capitalize">{{ a.vehicle_type }}</strong></div>
+        <div class="col-6"><span class="text-muted">Location:</span> <strong class="text-capitalize">{{ a.primary_location }}</strong></div>
+        <div class="col-6"><span class="text-muted">Accidents (3yr):</span> <strong>{{ a.previous_accidents }}</strong></div>
+        <div class="col-6"><span class="text-muted">Credit Score:</span> <strong>{{ a.credit_score }}</strong></div>
+      </div>
+    </div>
+
+    <p class="text-muted mt-3 mb-0" style="font-size:.78rem;">
+      Generated by RiskGuard AI — Gradient Boosting ML Model (87.2% accuracy)
+      &nbsp;|&nbsp; Pearson BTEC Level 6 Diploma in Digital Technologies
+    </p>
+  </div>
+
+  <!-- Footer -->
+  <div class="cert-footer">
+    <div>
+      <div class="cert-id">CERT: RG-{{ '%06d' | format(a.id) }}</div>
+      <div class="cert-verify">Verified by RiskGuard AI Risk Intelligence Platform</div>
+    </div>
+    <div class="qr-placeholder"><i class="bi bi-qr-code"></i></div>
+  </div>
+
+</div>
+</div>
+{% endblock %}

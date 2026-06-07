@@ -6,17 +6,20 @@
 
   <div class="rg-page-header d-flex align-items-start justify-content-between flex-wrap gap-3">
     <div>
-      <h2><i class="bi bi-clock-history text-primary me-2"></i>Assessment History</h2>
-      <p>All previously submitted risk assessments</p>
+      <h2><i class="bi bi-clock-history text-primary me-2"></i>{{ t.history_title }}</h2>
+      <p>{{ t.history_sub }}</p>
     </div>
     <div class="d-flex gap-2 flex-wrap">
+      <button id="bulkDeleteBtn" class="btn btn-sm btn-danger d-none" onclick="bulkDelete()">
+        <i class="bi bi-trash me-1"></i>O'chir (<span id="selectedCount">0</span>)
+      </button>
       <a href="/api/export-csv{% if cat_filter %}?category={{ cat_filter }}{% endif %}"
          class="btn btn-sm btn-outline-success"
          onclick="showToast('Downloading CSV…','info',2000)">
-        <i class="bi bi-file-earmark-spreadsheet me-1"></i>Export CSV
+        <i class="bi bi-file-earmark-spreadsheet me-1"></i>{{ t.history_export }}
       </a>
       <a href="/assessment" class="btn btn-sm btn-warning fw-bold">
-        <i class="bi bi-plus-circle me-1"></i>New Assessment
+        <i class="bi bi-plus-circle me-1"></i>{{ t.nav_new_assessment }}
       </a>
     </div>
   </div>
@@ -25,15 +28,34 @@
   <div class="card shadow-sm mb-4">
     <div class="card-body py-3">
       <div class="row g-3 align-items-center">
-        <div class="col-md-5">
+        <div class="col-md-4">
           <div class="input-group">
             <span class="input-group-text bg-transparent border-end-0">
               <i class="bi bi-search text-muted"></i>
             </span>
             <input type="text" class="form-control border-start-0" id="searchInput"
-                   placeholder="Search vehicle type, location, gender…"
+                   placeholder="{{ t.history_search }}"
                    oninput="filterTable()">
           </div>
+        </div>
+        <div class="col-md-5">
+          <form method="GET" action="/history" class="d-flex gap-2 align-items-center">
+            {% if cat_filter %}<input type="hidden" name="category" value="{{ cat_filter }}">{% endif %}
+            <input type="date" class="form-control form-control-sm" name="date_from"
+                   value="{{ date_from }}" placeholder="From">
+            <span class="text-muted small">—</span>
+            <input type="date" class="form-control form-control-sm" name="date_to"
+                   value="{{ date_to }}" placeholder="To">
+            <button type="submit" class="btn btn-sm btn-outline-primary px-2" title="Filter">
+              <i class="bi bi-funnel"></i>
+            </button>
+            {% if date_from or date_to %}
+            <a href="/history{% if cat_filter %}?category={{ cat_filter }}{% endif %}"
+               class="btn btn-sm btn-outline-secondary px-2" title="Clear">
+              <i class="bi bi-x"></i>
+            </a>
+            {% endif %}
+          </form>
         </div>
         <div class="col-md-7">
           <div class="filter-group">
@@ -64,7 +86,7 @@
     <div class="col-6 col-md-3">
       <div class="kpi-box">
         <div class="kpi-box-val text-primary">{{ pagination.total }}</div>
-        <div class="kpi-box-lbl">Total Records</div>
+        <div class="kpi-box-lbl">{{ t.history_total }}</div>
       </div>
     </div>
     <div class="col-6 col-md-3">
@@ -73,7 +95,7 @@
           {% set avg = (assessments | sum(attribute='risk_score')) / (assessments | length) %}
           {{ "%.1f"|format(avg) }}
         </div>
-        <div class="kpi-box-lbl">Avg Score (Page)</div>
+        <div class="kpi-box-lbl">{{ t.history_avg }}</div>
       </div>
     </div>
     <div class="col-6 col-md-3">
@@ -81,7 +103,7 @@
         <div class="kpi-box-val text-warning">
           {{ (assessments | max(attribute='risk_score')).risk_score }}
         </div>
-        <div class="kpi-box-lbl">Highest Score</div>
+        <div class="kpi-box-lbl">{{ t.history_highest }}</div>
       </div>
     </div>
     <div class="col-6 col-md-3">
@@ -89,7 +111,7 @@
         <div class="kpi-box-val text-info">
           {{ (assessments | min(attribute='risk_score')).risk_score }}
         </div>
-        <div class="kpi-box-lbl">Lowest Score</div>
+        <div class="kpi-box-lbl">{{ t.history_lowest }}</div>
       </div>
     </div>
   </div>
@@ -100,22 +122,24 @@
         <table class="table table-hover align-middle mb-0" id="historyTable">
           <thead class="table-dark">
             <tr>
+              <th><input type="checkbox" id="checkAll" onchange="toggleAll(this)" class="form-check-input"></th>
               <th class="sortable" onclick="sortTable(0)">#</th>
-              <th class="sortable" onclick="sortTable(1)">Date</th>
-              <th class="sortable" onclick="sortTable(2)">Age</th>
-              <th>Vehicle</th>
-              <th>Location</th>
-              <th class="sortable" onclick="sortTable(5)">Accidents</th>
-              <th class="sortable" onclick="sortTable(6)">Risk Score</th>
-              <th>Category</th>
-              <th class="sortable" onclick="sortTable(8)">Premium ×</th>
-              <th>Claim Prob.</th>
-              <th></th>
+              <th class="sortable" onclick="sortTable(1)">{{ t.history_col_date }}</th>
+              <th class="sortable" onclick="sortTable(2)">{{ t.history_col_age }}</th>
+              <th>{{ t.history_col_vehicle }}</th>
+              <th>{{ t.history_col_location }}</th>
+              <th class="sortable" onclick="sortTable(5)">{{ t.history_col_accidents }}</th>
+              <th class="sortable" onclick="sortTable(6)">{{ t.history_col_score }}</th>
+              <th>{{ t.history_col_category }}</th>
+              <th class="sortable" onclick="sortTable(8)">{{ t.history_col_premium }}</th>
+              <th>{{ t.history_col_status }}</th>
+              <th>{{ t.history_col_actions }}</th>
             </tr>
           </thead>
           <tbody id="historyTbody">
             {% for a in assessments %}
-            <tr class="history-row" data-search="{{ a.vehicle_type }} {{ a.primary_location }} {{ a.gender }} {{ a.marital_status }}">
+            <tr class="history-row" id="row-{{ a.id }}" data-search="{{ a.vehicle_type }} {{ a.primary_location }} {{ a.gender }} {{ a.marital_status }}">
+              <td><input type="checkbox" class="form-check-input row-check" value="{{ a.id }}" onchange="updateBulkBtn()"></td>
               <td class="text-muted small">{{ a.id }}</td>
               <td class="small">{{ a.created_at.strftime('%d %b %y %H:%M') }}</td>
               <td>{{ a.driver_age }}y<span class="text-muted small">/{{ a.driving_experience }}y exp</span></td>
@@ -145,11 +169,30 @@
                 </span>
               </td>
               <td class="fw-semibold">{{ a.premium_multiplier }}×</td>
-              <td>{{ "%.1f"|format(a.claim_probability * 100) }}%</td>
               <td>
-                <a href="/report/{{ a.id }}" class="btn btn-sm btn-outline-primary">
-                  <i class="bi bi-file-earmark-text"></i>
-                </a>
+                <select class="form-select form-select-sm status-select"
+                        data-id="{{ a.id }}"
+                        onchange="updateStatus(this)"
+                        style="min-width:110px;font-size:.75rem;">
+                  <option value="Pending"  {% if (a.status or 'Pending') == 'Pending'  %}selected{% endif %}>{{ t.status_pending }}</option>
+                  <option value="Reviewed" {% if (a.status or 'Pending') == 'Reviewed' %}selected{% endif %}>{{ t.status_reviewed }}</option>
+                  <option value="Approved" {% if (a.status or 'Pending') == 'Approved' %}selected{% endif %}>{{ t.status_approved }}</option>
+                </select>
+              </td>
+              <td>
+                <div class="d-flex gap-1">
+                  <a href="/report/{{ a.id }}" class="btn btn-sm btn-outline-primary" title="View Report">
+                    <i class="bi bi-file-earmark-text"></i>
+                  </a>
+                  <button class="btn btn-sm btn-outline-secondary" title="Notes"
+                          onclick="openNotes({{ a.id }}, `{{ (a.notes or '') | replace('`','') }}`)">
+                    <i class="bi bi-chat-left-text"></i>
+                  </button>
+                  <button class="btn btn-sm btn-outline-danger" title="Delete"
+                          onclick="deleteRow({{ a.id }})">
+                    <i class="bi bi-trash"></i>
+                  </button>
+                </div>
               </td>
             </tr>
             {% endfor %}
@@ -210,6 +253,49 @@
 </div>
 {% endblock %}
 
+<!-- Notes Modal -->
+<div class="modal fade" id="notesModal" tabindex="-1">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title"><i class="bi bi-chat-left-text me-2"></i>{{ t.notes_title }}</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <textarea id="notesText" class="form-control" rows="5"
+                  placeholder="{{ t.notes_placeholder }}"></textarea>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">{{ t.notes_cancel }}</button>
+        <button type="button" class="btn btn-primary" onclick="saveNotes()">
+          <i class="bi bi-save me-1"></i>{{ t.notes_save }}
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Delete Confirm Modal -->
+<div class="modal fade" id="deleteModal" tabindex="-1">
+  <div class="modal-dialog modal-sm">
+    <div class="modal-content">
+      <div class="modal-header bg-danger text-white">
+        <h5 class="modal-title"><i class="bi bi-trash me-2"></i>O'chirish</h5>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <p>Assessment <strong id="deleteId"></strong> ni o'chirmoqchimisiz?</p>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">{{ t.delete_no }}</button>
+        <button type="button" class="btn btn-danger btn-sm" onclick="confirmDelete()">
+          {{ t.delete_yes }}
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
 {% block scripts %}
 <script>
 function filterTable() {
@@ -238,6 +324,91 @@ function sortTable(colIdx) {
     return sortAsc[colIdx] ? cmp : -cmp;
   });
   rows.forEach(r => tbody.appendChild(r));
+}
+
+// ── Status ──
+function updateStatus(sel) {
+  const id = sel.dataset.id;
+  const status = sel.value;
+  fetch(`/api/assessment/${id}/status`, {
+    method: 'PATCH',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({status})
+  }).then(r => {
+    if (r.ok) showToast(`Status: ${status}`, 'success', 2000);
+    else showToast('Xato yuz berdi', 'danger', 2000);
+  });
+}
+
+// ── Notes ──
+let _notesId = null;
+function openNotes(id, current) {
+  _notesId = id;
+  document.getElementById('notesText').value = current;
+  new bootstrap.Modal(document.getElementById('notesModal')).show();
+}
+function saveNotes() {
+  const text = document.getElementById('notesText').value;
+  fetch(`/api/assessment/${_notesId}/notes`, {
+    method: 'PATCH',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({notes: text})
+  }).then(r => {
+    if (r.ok) {
+      bootstrap.Modal.getInstance(document.getElementById('notesModal')).hide();
+      showToast('Izoh saqlandi', 'success', 2000);
+    }
+  });
+}
+
+// ── Delete single ──
+let _deleteId = null;
+function deleteRow(id) {
+  _deleteId = id;
+  document.getElementById('deleteId').textContent = '#' + id;
+  new bootstrap.Modal(document.getElementById('deleteModal')).show();
+}
+function confirmDelete() {
+  fetch(`/api/assessment/${_deleteId}`, {method: 'DELETE'})
+    .then(r => {
+      if (r.ok) {
+        bootstrap.Modal.getInstance(document.getElementById('deleteModal')).hide();
+        const row = document.getElementById('row-' + _deleteId);
+        if (row) row.remove();
+        showToast('O\'chirildi', 'success', 2000);
+        updateBulkBtn();
+      }
+    });
+}
+
+// ── Bulk delete ──
+function toggleAll(cb) {
+  document.querySelectorAll('.row-check').forEach(c => c.checked = cb.checked);
+  updateBulkBtn();
+}
+function updateBulkBtn() {
+  const checked = document.querySelectorAll('.row-check:checked');
+  const btn = document.getElementById('bulkDeleteBtn');
+  document.getElementById('selectedCount').textContent = checked.length;
+  btn.classList.toggle('d-none', checked.length === 0);
+}
+function bulkDelete() {
+  const ids = [...document.querySelectorAll('.row-check:checked')].map(c => c.value);
+  if (!ids.length) return;
+  if (!confirm(`${ids.length} ta yozuvni o'chirmoqchimisiz?`)) return;
+  fetch('/api/bulk-delete', {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({ids})
+  }).then(r => r.json()).then(data => {
+    ids.forEach(id => {
+      const row = document.getElementById('row-' + id);
+      if (row) row.remove();
+    });
+    document.getElementById('checkAll').checked = false;
+    updateBulkBtn();
+    showToast(`${data.deleted} ta yozuv o'chirildi`, 'success', 2500);
+  });
 }
 </script>
 {% endblock %}

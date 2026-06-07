@@ -4,30 +4,33 @@
 
 /* ── CSS Variables ─────────────────────────────────────────── */
 :root {
-  --navy:        #0d1b2a;
-  --navy-mid:    #1b2d45;
-  --navy-light:  #253d5b;
-  --navy-glow:   rgba(37,61,91,.15);
-  --accent:      #f0a500;
-  --accent-lt:   #ffc73a;
-  --accent-glow: rgba(240,165,0,.2);
+  --navy:        #04080f;
+  --navy-mid:    #080f1e;
+  --navy-light:  #0f1e35;
+  --navy-glow:   rgba(0,212,255,.1);
+  --accent:      #ff9f0a;
+  --accent-lt:   #ffcc44;
+  --accent-glow: rgba(255,159,10,.25);
+  --cyan:        #00d4ff;
+  --cyan-glow:   rgba(0,212,255,.2);
 
   --low:      #10b981;
   --medium:   #f59e0b;
   --high:     #ef4444;
   --veryhigh: #7c3aed;
 
-  --bg:        #f0f4f9;
+  --bg:        #f0f4f8;
   --card:      #ffffff;
   --border:    #e2e8f0;
-  --text:      #1a202c;
+  --text:      #0f172a;
   --muted:     #64748b;
   --input-bg:  #f8fafc;
+  --card-bg:   #ffffff;
 
   --sh-sm: 0 1px 4px rgba(0,0,0,.07), 0 1px 2px rgba(0,0,0,.04);
   --sh-md: 0 4px 16px rgba(0,0,0,.09), 0 1px 4px rgba(0,0,0,.05);
-  --sh-lg: 0 12px 40px rgba(0,0,0,.13), 0 2px 8px rgba(0,0,0,.07);
-  --sh-xl: 0 20px 60px rgba(0,0,0,.18);
+  --sh-lg: 0 12px 40px rgba(0,0,0,.14), 0 2px 8px rgba(0,0,0,.07);
+  --sh-xl: 0 20px 60px rgba(0,0,0,.2);
 
   --radius:    14px;
   --radius-sm: 8px;
@@ -40,14 +43,15 @@
 
 /* ── Dark Mode ──────────────────────────────────────────────── */
 [data-theme="dark"] {
-  --bg:       #0b1120;
-  --card:     #131e2e;
-  --border:   #1e3048;
+  --bg:       #02050d;
+  --card:     #080f1e;
+  --border:   #0f1e35;
   --text:     #e2e8f0;
   --muted:    #8899aa;
-  --input-bg: #0f1a28;
-  --sh-md:    0 4px 20px rgba(0,0,0,.4);
-  --sh-lg:    0 12px 48px rgba(0,0,0,.5);
+  --input-bg: #04080f;
+  --card-bg:  #080f1e;
+  --sh-md:    0 4px 20px rgba(0,0,0,.5);
+  --sh-lg:    0 12px 48px rgba(0,0,0,.6);
 }
 [data-theme="dark"] .table { color: var(--text); }
 [data-theme="dark"] .table-dark { background: #0d1b2a; }
@@ -192,13 +196,13 @@ body {
 /* ── Hero ───────────────────────────────────────────────────── */
 .rg-hero {
   position: relative;
-  min-height: 560px;
+  min-height: 580px;
   display: flex;
   align-items: center;
   overflow: hidden;
-  background: linear-gradient(135deg, var(--navy) 0%, var(--navy-mid) 50%, #0a2540 100%);
+  background: linear-gradient(135deg, #04080f 0%, #080f1e 45%, #04080f 100%);
   background-size: 200% 200%;
-  animation: heroGradient 8s ease infinite;
+  animation: heroGradient 10s ease infinite;
 }
 @keyframes heroGradient {
   0%   { background-position: 0% 50%; }
@@ -920,4 +924,31 @@ body {
   .stat-value { font-size: 1.6rem; }
   .chatbot-container { height: 580px; border-radius: var(--radius-lg); }
   .rg-hero { min-height: 440px; padding: 3rem 0; }
+}
+
+/* ── Language switcher ──────────────────────────────────────── */
+.lang-switcher {
+  display: flex;
+  align-items: center;
+  background: rgba(255,255,255,.08);
+  border-radius: 20px;
+  padding: 3px 4px;
+  gap: 2px;
+}
+.lang-pill {
+  font-size: .75rem;
+  font-weight: 700;
+  letter-spacing: .03em;
+  text-decoration: none;
+  color: rgba(255,255,255,.5);
+  padding: 4px 10px;
+  border-radius: 16px;
+  transition: all .2s;
+  white-space: nowrap;
+}
+.lang-pill:hover { color: rgba(255,255,255,.85); background: rgba(255,255,255,.1); }
+.lang-pill-active {
+  background: var(--accent) !important;
+  color: var(--navy) !important;
+  box-shadow: 0 2px 8px rgba(245,158,11,.4);
 }

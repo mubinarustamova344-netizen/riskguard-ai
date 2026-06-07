@@ -9,7 +9,9 @@ from sklearn.tree import DecisionTreeClassifier
 from sklearn.preprocessing import LabelEncoder, StandardScaler
 from sklearn.model_selection import train_test_split, cross_val_score
 from sklearn.metrics import (classification_report, accuracy_score,
-                             confusion_matrix, roc_auc_score)
+                             confusion_matrix, roc_auc_score, f1_score,
+                             precision_score, recall_score)
+from sklearn.model_selection import GridSearchCV
 from sklearn.pipeline import Pipeline
 from sklearn.compose import ColumnTransformer
 from sklearn.preprocessing import OneHotEncoder
@@ -38,58 +40,95 @@ def build_preprocessor():
 def train_models(df):
     X = df[ALL_FEATURES]
     y = df[TARGET]
-    X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2,
-                                                         random_state=42, stratify=y)
+    X_train, X_test, y_train, y_test = train_test_split(
+        X, y, test_size=0.2, random_state=42, stratify=y)
     preprocessor = build_preprocessor()
 
-    classifiers = {
-        'Random Forest':     RandomForestClassifier(n_estimators=200, max_depth=12,
-                                                     min_samples_split=4, random_state=42,
-                                                     class_weight='balanced'),
-        'Gradient Boosting': GradientBoostingClassifier(n_estimators=150, max_depth=5,
-                                                         learning_rate=0.08, random_state=42),
-        'Logistic Regression': LogisticRegression(max_iter=1000, C=1.0, random_state=42,
-                                                   class_weight='balanced'),
-        'Decision Tree':     DecisionTreeClassifier(max_depth=10, random_state=42,
-                                                     class_weight='balanced'),
+    # ── Baseline classifiers ───────────────────────────────────────
+    baseline_classifiers = {
+        'Decision Tree': DecisionTreeClassifier(
+            max_depth=10, random_state=42, class_weight='balanced'),
+        'Logistic Regression': LogisticRegression(
+            max_iter=1000, C=1.0, random_state=42, class_weight='balanced'),
+        'Random Forest': RandomForestClassifier(
+            n_estimators=200, max_depth=12, min_samples_split=4,
+            random_state=42, class_weight='balanced'),
     }
 
     results = {}
-    best_acc = 0
-    best_name = None
-    best_pipeline = None
-
-    for name, clf in classifiers.items():
-        pipeline = Pipeline([('preprocessor', preprocessor), ('classifier', clf)])
-        pipeline.fit(X_train, y_train)
-        y_pred = pipeline.predict(X_test)
+    for name, clf in baseline_classifiers.items():
+        pipe = Pipeline([('preprocessor', build_preprocessor()), ('classifier', clf)])
+        pipe.fit(X_train, y_train)
+        y_pred = pipe.predict(X_test)
         acc = accuracy_score(y_test, y_pred)
-        cv = cross_val_score(pipeline, X_train, y_train, cv=5, scoring='accuracy').mean()
+        cv  = cross_val_score(pipe, X_train, y_train, cv=5, scoring='accuracy').mean()
+        f1  = f1_score(y_test, y_pred, average='weighted')
+        prec = precision_score(y_test, y_pred, average='weighted', zero_division=0)
+        rec  = recall_score(y_test, y_pred, average='weighted', zero_division=0)
+        cm   = confusion_matrix(y_test, y_pred, labels=CATEGORY_ORDER)
         report = classification_report(y_test, y_pred, output_dict=True)
-        cm = confusion_matrix(y_test, y_pred, labels=CATEGORY_ORDER)
         results[name] = {
-            'accuracy': round(acc, 4),
-            'cv_accuracy': round(cv, 4),
-            'report': report,
-            'confusion_matrix': cm.tolist(),
+            'accuracy': round(acc, 4), 'cv_accuracy': round(cv, 4),
+            'f1': round(f1, 4), 'precision': round(prec, 4), 'recall': round(rec, 4),
+            'report': report, 'confusion_matrix': cm.tolist(),
+            'tuned': False,
         }
-        print(f"{name}: accuracy={acc:.4f}, cv={cv:.4f}")
-        if acc > best_acc:
-            best_acc = acc
-            best_name = name
-            best_pipeline = pipeline
+        print(f"  {name}: acc={acc:.4f}  cv={cv:.4f}  f1={f1:.4f}")
 
-    # Feature importance for Random Forest
-    rf_pipeline = Pipeline([('preprocessor', build_preprocessor()),
-                             ('classifier', RandomForestClassifier(n_estimators=200,
-                                                                    max_depth=12,
-                                                                    random_state=42))])
-    rf_pipeline.fit(X_train, y_train)
-    ohe_features = (rf_pipeline.named_steps['preprocessor']
-                    .named_transformers_['cat']
-                    .get_feature_names_out(CATEGORICAL_FEATURES).tolist())
-    feature_names = NUMERIC_FEATURES + ohe_features
-    importances = rf_pipeline.named_steps['classifier'].feature_importances_
+    # ── Gradient Boosting with GridSearchCV (hyperparameter tuning) ─
+    print("\n  [GridSearchCV] Tuning Gradient Boosting hyperparameters ...")
+    gb_param_grid = {
+        'classifier__n_estimators': [100, 150, 200],
+        'classifier__max_depth':    [3, 5, 7],
+        'classifier__learning_rate': [0.05, 0.08, 0.12],
+        'classifier__subsample':    [0.8, 1.0],
+    }
+    gb_base = Pipeline([
+        ('preprocessor', build_preprocessor()),
+        ('classifier', GradientBoostingClassifier(random_state=42)),
+    ])
+    grid_search = GridSearchCV(
+        gb_base, gb_param_grid, cv=5, scoring='accuracy',
+        n_jobs=-1, verbose=0, refit=True,
+    )
+    grid_search.fit(X_train, y_train)
+    best_gb = grid_search.best_estimator_
+    best_params = {k.replace('classifier__', ''): v
+                   for k, v in grid_search.best_params_.items()}
+    print(f"  Best GB params: {best_params}")
+
+    y_pred_gb = best_gb.predict(X_test)
+    acc_gb   = accuracy_score(y_test, y_pred_gb)
+    cv_gb    = cross_val_score(best_gb, X_train, y_train, cv=5, scoring='accuracy').mean()
+    f1_gb    = f1_score(y_test, y_pred_gb, average='weighted')
+    prec_gb  = precision_score(y_test, y_pred_gb, average='weighted', zero_division=0)
+    rec_gb   = recall_score(y_test, y_pred_gb, average='weighted', zero_division=0)
+    cm_gb    = confusion_matrix(y_test, y_pred_gb, labels=CATEGORY_ORDER)
+    report_gb = classification_report(y_test, y_pred_gb, output_dict=True)
+    results['Gradient Boosting (Tuned)'] = {
+        'accuracy': round(acc_gb, 4), 'cv_accuracy': round(cv_gb, 4),
+        'f1': round(f1_gb, 4), 'precision': round(prec_gb, 4), 'recall': round(rec_gb, 4),
+        'report': report_gb, 'confusion_matrix': cm_gb.tolist(),
+        'best_params': best_params, 'tuned': True,
+        'grid_search_best_score': round(grid_search.best_score_, 4),
+    }
+    print(f"  Gradient Boosting (Tuned): acc={acc_gb:.4f}  cv={cv_gb:.4f}  f1={f1_gb:.4f}")
+
+    # Best model = tuned GB
+    best_pipeline = best_gb
+    best_name = 'Gradient Boosting (Tuned)'
+    best_acc  = acc_gb
+
+    # ── Feature importance ─────────────────────────────────────────
+    rf_pipe = Pipeline([('preprocessor', build_preprocessor()),
+                        ('classifier', RandomForestClassifier(
+                            n_estimators=200, max_depth=12, random_state=42))])
+    rf_pipe.fit(X_train, y_train)
+    ohe_feats = (rf_pipe.named_steps['preprocessor']
+                 .named_transformers_['cat']
+                 .get_feature_names_out(CATEGORICAL_FEATURES).tolist())
+    feature_names = NUMERIC_FEATURES + ohe_feats
+    importances = rf_pipe.named_steps['classifier'].feature_importances_
     feat_imp = dict(sorted(zip(feature_names, importances),
                             key=lambda x: x[1], reverse=True)[:15])
 
@@ -101,11 +140,14 @@ def train_models(df):
         'test_size': len(y_test),
         'train_size': len(y_train),
         'class_distribution': y.value_counts().to_dict(),
+        'best_params': best_params,
+        'grid_search_best_score': round(grid_search.best_score_, 4),
+        'n_samples': len(df),
+        'n_features': len(ALL_FEATURES),
     }
     joblib.dump(best_pipeline, MODEL_PATH)
     joblib.dump(metrics, METRICS_PATH)
     print(f"\nBest model: {best_name} (accuracy={best_acc:.4f})")
-    print(f"Model saved to {MODEL_PATH}")
     return best_pipeline, metrics
 
 
@@ -197,6 +239,48 @@ def compute_factor_contributions(input_data: dict) -> list:
     return risk_items + safe_items
 
 
+def compute_improvement_roadmap(model, input_data: dict, current_score: float) -> list:
+    """Simulate score reduction for each improveable factor."""
+    roadmap = []
+    tweaks = [
+        ('previous_accidents', 0,   'Accidents (3yr)',      'Maintain clean record for 3 years'),
+        ('traffic_violations', 0,   'Traffic Violations',   'Avoid violations for 12 months'),
+        ('night_driving_pct', 10,   'Night Driving',        'Reduce night driving to 10%'),
+        ('annual_mileage',    8000, 'Annual Mileage',       'Drive under 8,000 miles/year'),
+        ('credit_score',      750,  'Credit Score',         'Improve credit score to 750+'),
+    ]
+    for field, target_val, label, action in tweaks:
+        current_val = input_data.get(field, target_val)
+        try:
+            current_val = float(current_val)
+        except (TypeError, ValueError):
+            continue
+        if current_val <= target_val and field not in ('credit_score',):
+            continue
+        if field == 'credit_score' and current_val >= target_val:
+            continue
+        sim = dict(input_data)
+        sim[field] = target_val
+        try:
+            sim_result = predict_risk(model, sim)
+            new_score = sim_result['risk_score']
+            saving = round(current_score - new_score, 1)
+            if saving > 0.5:
+                roadmap.append({
+                    'label': label,
+                    'action': action,
+                    'current': round(current_val, 1),
+                    'target': target_val,
+                    'saving': saving,
+                    'new_score': new_score,
+                    'new_category': sim_result['risk_category'],
+                })
+        except Exception:
+            pass
+    roadmap.sort(key=lambda x: x['saving'], reverse=True)
+    return roadmap[:5]
+
+
 def predict_risk(model, input_data: dict) -> dict:
     df = pd.DataFrame([input_data])
     for col in NUMERIC_FEATURES:
@@ -235,11 +319,14 @@ def predict_risk(model, input_data: dict) -> dict:
     recommendations = _get_recommendations(risk_category, input_data)
     factor_contributions = compute_factor_contributions(input_data)
 
+    confidence = round(float(max(proba)) * 100, 1)
+
     return {
         'risk_category': risk_category,
         'risk_score': risk_score,
         'premium_multiplier': premium_multiplier,
         'claim_probability': claim_prob,
+        'confidence': confidence,
         'class_probabilities': {c: round(p, 3) for c, p in zip(classes, proba)},
         'recommendations': recommendations,
         'factor_contributions': factor_contributions,

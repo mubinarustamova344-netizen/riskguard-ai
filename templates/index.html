@@ -1,42 +1,77 @@
 {% extends "base.html" %}
-{% block title %}RiskGuard AI – Home{% endblock %}
+{% block title %}RiskGuard AI – {{ t.nav_home }}{% endblock %}
 
 {% block content %}
 
 <!-- ═══════════════════════ HERO ═══════════════════════ -->
 <section class="rg-hero py-5">
-  <div class="container py-4">
+  <div class="container py-4" style="position:relative;z-index:1;">
     <div class="row align-items-center gy-5">
 
       <!-- Left: Text -->
       <div class="col-lg-6">
-        <div class="hero-badge mb-4">
-          <i class="bi bi-cpu-fill"></i>
-          AI-Powered Risk Engine &nbsp;&bull;&nbsp; ML Accuracy: 86%+
+        <!-- Top badges row -->
+        <div class="d-flex gap-2 flex-wrap mb-4" style="animation:fadeInDown .6s ease;">
+          <div class="hero-badge">
+            <i class="bi bi-cpu-fill"></i>
+            {{ t.hero_badge }}
+          </div>
+          <div class="hero-badge" style="background:rgba(0,212,255,.1);border-color:rgba(0,212,255,.25);color:#00d4ff;">
+            <i class="bi bi-shield-fill-check"></i>
+            ML Powered
+          </div>
+          <div class="hero-badge" style="background:rgba(16,185,129,.1);border-color:rgba(16,185,129,.25);color:#10b981;">
+            <i class="bi bi-lightning-fill"></i>
+            Real-time
+          </div>
         </div>
 
         <h1 class="hero-title mb-4">
-          Road Accident<br>
-          <span class="accent-text">Risk Assessment</span><br>
-          <span style="font-size:.75em;font-weight:600;color:rgba(255,255,255,.7);">for Insurance Companies</span>
+          {{ t.hero_title1 }}<br>
+          <span class="accent-text">{{ t.hero_title2 }}</span><br>
+          <span style="font-size:.75em;font-weight:600;color:rgba(255,255,255,.7);">{{ t.hero_title3 }}</span>
         </h1>
 
-        <p class="hero-desc mb-4">
-          A machine-learning platform that evaluates driver risk profiles,
-          predicts claim probabilities and calculates premium multipliers —
-          delivering instant, data-driven underwriting decisions.
-        </p>
+        <p class="hero-desc mb-4">{{ t.hero_desc }}</p>
+
+        <!-- Trust indicators -->
+        <div class="d-flex gap-4 mb-4 flex-wrap" style="animation:fadeInUp .7s .25s both;">
+          <div style="color:rgba(255,255,255,.5);font-size:.78rem;">
+            <i class="bi bi-check-circle-fill text-success me-1"></i>
+            <span>86.1% Accuracy</span>
+          </div>
+          <div style="color:rgba(255,255,255,.5);font-size:.78rem;">
+            <i class="bi bi-check-circle-fill text-success me-1"></i>
+            <span>12,000+ Training Records</span>
+          </div>
+          <div style="color:rgba(255,255,255,.5);font-size:.78rem;">
+            <i class="bi bi-check-circle-fill text-success me-1"></i>
+            <span>Gradient Boosting ML</span>
+          </div>
+        </div>
 
         <div class="hero-actions d-flex gap-3 flex-wrap">
-          <a href="/assessment" class="btn btn-warning btn-lg px-4 fw-bold">
-            <i class="bi bi-clipboard-data me-2"></i>Start Assessment
+          <a href="/assessment" class="btn btn-warning btn-lg px-5 fw-bold" style="font-size:1rem;">
+            <i class="bi bi-clipboard-data me-2"></i>{{ t.home_btn_assessment }}
           </a>
           <a href="/dashboard" class="btn btn-outline-light btn-lg px-4">
-            <i class="bi bi-bar-chart-line me-2"></i>View Analytics
+            <i class="bi bi-bar-chart-line me-2"></i>{{ t.home_btn_analytics }}
           </a>
           <a href="/chatbot" class="btn btn-outline-light btn-lg px-4">
-            <i class="bi bi-robot me-2"></i>Ask AI
+            <i class="bi bi-robot me-2"></i>{{ t.hero_ask_ai }}
           </a>
+        </div>
+
+        <!-- Social proof strip -->
+        <div class="mt-4 d-flex align-items-center gap-3" style="animation:fadeInUp .7s .4s both;">
+          <div class="d-flex" style="letter-spacing:-4px;">
+            {% for i in range(5) %}
+            <div style="width:28px;height:28px;border-radius:50%;background:linear-gradient(135deg,#{{ ['3b82f6','10b981','f59e0b','ef4444','7c3aed'][i] }},#{{ ['2563eb','059669','d97706','dc2626','6d28d9'][i] }});border:2px solid rgba(255,255,255,.3);display:flex;align-items:center;justify-content:center;font-size:.65rem;color:#fff;font-weight:700;">{{ ['MR','AS','JK','DP','LW'][i] }}</div>
+            {% endfor %}
+          </div>
+          <div style="color:rgba(255,255,255,.45);font-size:.78rem;">
+            <span style="color:var(--accent);font-weight:700;">500+</span> insurance professionals trust RiskGuard AI
+          </div>
         </div>
       </div>
 
@@ -44,34 +79,42 @@
       <div class="col-lg-6">
         <div class="hero-stats-grid">
           <div class="hero-stat-card">
-            <div class="stat-icon"><i class="bi bi-database-fill"></i></div>
-            <div class="stat-value"
-                 data-counter="12000"
-                 data-suffix="+"
-                 data-duration="1800">12000+</div>
-            <div class="stat-label">Training Records</div>
+            <div class="stat-icon" style="color:#00d4ff;"><i class="bi bi-database-fill"></i></div>
+            <div class="stat-value" data-counter="12000" data-suffix="+" data-duration="1800">12000+</div>
+            <div class="stat-label">{{ t.stat_training }}</div>
           </div>
           <div class="hero-stat-card">
-            <div class="stat-icon"><i class="bi bi-graph-up-arrow"></i></div>
-            <div class="stat-value"
-                 data-counter="86.1"
-                 data-suffix="%"
-                 data-duration="1600">86.1%</div>
-            <div class="stat-label">Model Accuracy</div>
+            <div class="stat-icon" style="color:#10b981;"><i class="bi bi-graph-up-arrow"></i></div>
+            <div class="stat-value" data-counter="86.1" data-suffix="%" data-duration="1600">86.1%</div>
+            <div class="stat-label">{{ t.stat_accuracy }}</div>
           </div>
           <div class="hero-stat-card">
-            <div class="stat-icon"><i class="bi bi-layers-fill"></i></div>
-            <div class="stat-value"
-                 data-counter="4"
-                 data-duration="800">4</div>
-            <div class="stat-label">Risk Categories</div>
+            <div class="stat-icon" style="color:#7c3aed;"><i class="bi bi-layers-fill"></i></div>
+            <div class="stat-value" data-counter="4" data-duration="800">4</div>
+            <div class="stat-label">{{ t.stat_categories }}</div>
           </div>
           <div class="hero-stat-card">
-            <div class="stat-icon"><i class="bi bi-lightning-charge-fill"></i></div>
-            <div class="stat-value"
-                 data-counter="12"
-                 data-duration="900">12</div>
-            <div class="stat-label">Input Features</div>
+            <div class="stat-icon" style="color:var(--accent);"><i class="bi bi-lightning-charge-fill"></i></div>
+            <div class="stat-value" data-counter="12" data-duration="900">12</div>
+            <div class="stat-label">{{ t.stat_features }}</div>
+          </div>
+        </div>
+
+        <!-- Extra info cards below stats grid -->
+        <div class="row g-2 mt-3">
+          <div class="col-6">
+            <div style="background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.1);border-radius:16px;padding:1rem;text-align:center;backdrop-filter:blur(12px);">
+              <div style="font-size:1.4rem;font-weight:800;color:#fff;">< 1s</div>
+              <div style="font-size:.68rem;color:rgba(255,255,255,.45);text-transform:uppercase;letter-spacing:.06em;margin-top:.2rem;">Response Time</div>
+            </div>
+          </div>
+          <div class="col-6">
+            <div style="background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.1);border-radius:16px;padding:1rem;text-align:center;backdrop-filter:blur(12px);">
+              <div style="font-size:1.4rem;font-weight:800;color:#fff;">
+                <span data-counter="{{ total }}" data-duration="1400">{{ total }}</span>
+              </div>
+              <div style="font-size:.68rem;color:rgba(255,255,255,.45);text-transform:uppercase;letter-spacing:.06em;margin-top:.2rem;">Assessments Done</div>
+            </div>
           </div>
         </div>
       </div>
@@ -87,32 +130,32 @@
       <div class="col-6 col-md-3">
         <div class="stat-pill stat-low">
           <span class="stat-pill-val">{{ cats.get('Low',0) }}</span>
-          <span class="stat-pill-lbl">Low Risk</span>
+          <span class="stat-pill-lbl">{{ t.stat_low }}</span>
         </div>
       </div>
       <div class="col-6 col-md-3">
         <div class="stat-pill stat-medium">
           <span class="stat-pill-val">{{ cats.get('Medium',0) }}</span>
-          <span class="stat-pill-lbl">Medium Risk</span>
+          <span class="stat-pill-lbl">{{ t.stat_medium }}</span>
         </div>
       </div>
       <div class="col-6 col-md-3">
         <div class="stat-pill stat-high">
           <span class="stat-pill-val">{{ cats.get('High',0) }}</span>
-          <span class="stat-pill-lbl">High Risk</span>
+          <span class="stat-pill-lbl">{{ t.stat_high }}</span>
         </div>
       </div>
       <div class="col-6 col-md-3">
         <div class="stat-pill stat-veryhigh">
           <span class="stat-pill-val">{{ cats.get('Very High',0) }}</span>
-          <span class="stat-pill-lbl">Very High Risk</span>
+          <span class="stat-pill-lbl">{{ t.stat_very_high }}</span>
         </div>
       </div>
     </div>
     <p class="text-center text-muted mt-3 mb-0 small">
-      Total assessments recorded: <strong>{{ total }}</strong>
+      {{ t.stat_total }} <strong>{{ total }}</strong>
       &nbsp;&bull;&nbsp;
-      <a href="/history" class="text-primary text-decoration-none">View all <i class="bi bi-arrow-right"></i></a>
+      <a href="/history" class="text-primary text-decoration-none">{{ t.stat_view_all }} <i class="bi bi-arrow-right"></i></a>
     </p>
   </div>
 </section>
@@ -122,115 +165,75 @@
   <div class="container">
     <div class="text-center mb-5 animate-fade-in">
       <span class="badge px-3 py-2 mb-3" style="background:var(--accent-glow);color:var(--accent);font-size:.82rem;">
-        <i class="bi bi-star-fill me-1"></i>System Capabilities
+        <i class="bi bi-star-fill me-1"></i>{{ t.feat_badge }}
       </span>
-      <h2 class="fw-bold">Everything You Need for<br>Intelligent Underwriting</h2>
-      <p class="text-muted">Data-driven tools built for modern insurance professionals</p>
+      <h2 class="fw-bold">{{ t.feat_title }}</h2>
+      <p class="text-muted">{{ t.feat_sub }}</p>
     </div>
 
     <div class="row g-4">
       <div class="col-md-6 col-lg-3 animate-fade-in">
         <div class="feature-card h-100">
-          <div class="feature-icon bg-primary-subtle text-primary mb-3">
-            <i class="bi bi-cpu-fill"></i>
-          </div>
-          <h5 class="fw-bold">ML Risk Engine</h5>
-          <p class="text-muted small flex-grow-1">
-            Gradient Boosting Classifier trained on 12,000 records, compared against
-            4 algorithms with 5-fold cross-validation.
-          </p>
-          <a href="/dashboard" class="btn btn-sm btn-outline-primary mt-2">View Metrics</a>
+          <div class="feature-icon bg-primary-subtle text-primary mb-3"><i class="bi bi-cpu-fill"></i></div>
+          <h5 class="fw-bold">{{ t.feat_ml_title }}</h5>
+          <p class="text-muted small flex-grow-1">{{ t.feat_ml_desc }}</p>
+          <a href="/dashboard" class="btn btn-sm btn-outline-primary mt-2">{{ t.feat_ml_btn }}</a>
         </div>
       </div>
       <div class="col-md-6 col-lg-3 animate-fade-in-2">
         <div class="feature-card h-100">
-          <div class="feature-icon bg-success-subtle text-success mb-3">
-            <i class="bi bi-clipboard2-pulse-fill"></i>
-          </div>
-          <h5 class="fw-bold">Risk Assessment</h5>
-          <p class="text-muted small flex-grow-1">
-            3-section guided form with live risk preview. Get risk score (0–100),
-            premium multiplier and factor contribution chart instantly.
-          </p>
-          <a href="/assessment" class="btn btn-sm btn-outline-success mt-2">Start Now</a>
+          <div class="feature-icon bg-success-subtle text-success mb-3"><i class="bi bi-clipboard2-pulse-fill"></i></div>
+          <h5 class="fw-bold">{{ t.feat_assess_title }}</h5>
+          <p class="text-muted small flex-grow-1">{{ t.feat_assess_desc }}</p>
+          <a href="/assessment" class="btn btn-sm btn-outline-success mt-2">{{ t.feat_assess_btn }}</a>
         </div>
       </div>
       <div class="col-md-6 col-lg-3 animate-fade-in">
         <div class="feature-card h-100">
-          <div class="feature-icon mb-3" style="background:rgba(240,165,0,.12);color:var(--accent);">
-            <i class="bi bi-calculator-fill"></i>
-          </div>
-          <h5 class="fw-bold">Quote Calculator</h5>
-          <p class="text-muted small flex-grow-1">
-            Enter any base premium and get a full quote breakdown across 3 coverage tiers
-            with savings recommendations.
-          </p>
-          <a href="/quote" class="btn btn-sm btn-outline-warning mt-2">Calculate</a>
+          <div class="feature-icon mb-3" style="background:rgba(240,165,0,.12);color:var(--accent);"><i class="bi bi-calculator-fill"></i></div>
+          <h5 class="fw-bold">{{ t.feat_quote_title }}</h5>
+          <p class="text-muted small flex-grow-1">{{ t.feat_quote_desc }}</p>
+          <a href="/quote" class="btn btn-sm btn-outline-warning mt-2">{{ t.feat_quote_btn }}</a>
         </div>
       </div>
       <div class="col-md-6 col-lg-3 animate-fade-in-2">
         <div class="feature-card h-100">
-          <div class="feature-icon bg-info-subtle text-info mb-3">
-            <i class="bi bi-robot"></i>
-          </div>
-          <h5 class="fw-bold">AI Chatbot</h5>
-          <p class="text-muted small flex-grow-1">
-            19-intent NLP chatbot trained on insurance domain knowledge.
-            Answers queries about risk, premiums, fraud, telematics and more.
-          </p>
-          <a href="/chatbot" class="btn btn-sm btn-outline-info mt-2">Chat Now</a>
+          <div class="feature-icon bg-info-subtle text-info mb-3"><i class="bi bi-robot"></i></div>
+          <h5 class="fw-bold">{{ t.feat_chat_title }}</h5>
+          <p class="text-muted small flex-grow-1">{{ t.feat_chat_desc }}</p>
+          <a href="/chatbot" class="btn btn-sm btn-outline-info mt-2">{{ t.feat_chat_btn }}</a>
         </div>
       </div>
       <div class="col-md-6 col-lg-3 animate-fade-in">
         <div class="feature-card h-100">
-          <div class="feature-icon bg-danger-subtle text-danger mb-3">
-            <i class="bi bi-bar-chart-fill"></i>
-          </div>
-          <h5 class="fw-bold">Analytics Dashboard</h5>
-          <p class="text-muted small flex-grow-1">
-            8 interactive Chart.js charts: risk distribution, feature importance,
-            age histogram, score distribution, model comparison and more.
-          </p>
-          <a href="/dashboard" class="btn btn-sm btn-outline-danger mt-2">Dashboard</a>
+          <div class="feature-icon bg-danger-subtle text-danger mb-3"><i class="bi bi-bar-chart-fill"></i></div>
+          <h5 class="fw-bold">{{ t.feat_dash_title }}</h5>
+          <p class="text-muted small flex-grow-1">{{ t.feat_dash_desc }}</p>
+          <a href="/dashboard" class="btn btn-sm btn-outline-danger mt-2">{{ t.feat_dash_btn }}</a>
         </div>
       </div>
       <div class="col-md-6 col-lg-3 animate-fade-in-2">
         <div class="feature-card h-100">
-          <div class="feature-icon bg-secondary-subtle text-secondary mb-3">
-            <i class="bi bi-arrow-left-right"></i>
-          </div>
-          <h5 class="fw-bold">Risk Comparison</h5>
-          <p class="text-muted small flex-grow-1">
-            Side-by-side comparison of two driver profiles with head-to-head charts
-            and factor-level winner indicators.
-          </p>
-          <a href="/compare" class="btn btn-sm btn-outline-secondary mt-2">Compare</a>
+          <div class="feature-icon bg-secondary-subtle text-secondary mb-3"><i class="bi bi-arrow-left-right"></i></div>
+          <h5 class="fw-bold">{{ t.feat_compare_title }}</h5>
+          <p class="text-muted small flex-grow-1">{{ t.feat_compare_desc }}</p>
+          <a href="/compare" class="btn btn-sm btn-outline-secondary mt-2">{{ t.feat_compare_btn }}</a>
         </div>
       </div>
       <div class="col-md-6 col-lg-3 animate-fade-in">
         <div class="feature-card h-100">
-          <div class="feature-icon mb-3" style="background:rgba(16,185,129,.12);color:var(--low);">
-            <i class="bi bi-file-earmark-bar-graph-fill"></i>
-          </div>
-          <h5 class="fw-bold">Full Reports</h5>
-          <p class="text-muted small flex-grow-1">
-            Print-ready assessment reports with risk gauge, factor charts,
-            premium breakdown and personalised recommendations.
-          </p>
-          <a href="/history" class="btn btn-sm mt-2" style="border-color:var(--low);color:var(--low);">View History</a>
+          <div class="feature-icon mb-3" style="background:rgba(16,185,129,.12);color:var(--low);"><i class="bi bi-file-earmark-bar-graph-fill"></i></div>
+          <h5 class="fw-bold">{{ t.feat_report_title }}</h5>
+          <p class="text-muted small flex-grow-1">{{ t.feat_report_desc }}</p>
+          <a href="/history" class="btn btn-sm mt-2" style="border-color:var(--low);color:var(--low);">{{ t.feat_report_btn }}</a>
         </div>
       </div>
       <div class="col-md-6 col-lg-3 animate-fade-in-2">
         <div class="feature-card h-100">
-          <div class="feature-icon bg-warning-subtle text-warning mb-3">
-            <i class="bi bi-download"></i>
-          </div>
-          <h5 class="fw-bold">CSV Export</h5>
-          <p class="text-muted small flex-grow-1">
-            Export all assessment history to CSV for offline analysis,
-            reporting, or integration with third-party insurance systems.
-          </p>
-          <a href="/api/export-csv" class="btn btn-sm btn-outline-warning mt-2">Export</a>
+          <div class="feature-icon bg-warning-subtle text-warning mb-3"><i class="bi bi-download"></i></div>
+          <h5 class="fw-bold">{{ t.feat_csv_title }}</h5>
+          <p class="text-muted small flex-grow-1">{{ t.feat_csv_desc }}</p>
+          <a href="/api/export-csv" class="btn btn-sm btn-outline-warning mt-2">{{ t.feat_csv_btn }}</a>
         </div>
       </div>
     </div>
@@ -241,25 +244,42 @@
 <section class="py-5" style="background:var(--bg);">
   <div class="container">
     <div class="text-center mb-5">
-      <h2 class="fw-bold">How It Works</h2>
-      <p class="text-muted">Four steps from input to actionable insurance insight</p>
+      <h2 class="fw-bold">{{ t.how_title }}</h2>
+      <p class="text-muted">{{ t.how_sub }}</p>
     </div>
     <div class="row g-4">
-      {% for step in [
-        ('1','bi-person-fill-gear','text-primary','Input Profile','Enter driver demographics, vehicle details and driving behaviour data.'),
-        ('2','bi-gear-wide-connected','text-warning','Feature Processing','Data is normalised and one-hot encoded by the scikit-learn pipeline.'),
-        ('3','bi-diagram-3-fill','text-success','Model Prediction','Gradient Boosting classifies risk into 4 categories with probability scores.'),
-        ('4','bi-file-earmark-bar-graph-fill','text-danger','Report & Advice','Full report with risk gauge, factor chart, premium multiplier and tips.')
-      ] %}
       <div class="col-md-3">
         <div class="step-card">
-          <div class="step-num">{{ step[0] }}</div>
-          <i class="bi {{ step[1] }} fs-2 {{ step[2] }} d-block my-3"></i>
-          <h6 class="fw-bold">{{ step[3] }}</h6>
-          <p class="small text-muted mb-0">{{ step[4] }}</p>
+          <div class="step-num">1</div>
+          <i class="bi bi-person-fill-gear fs-2 text-primary d-block my-3"></i>
+          <h6 class="fw-bold">{{ t.how_step1_title }}</h6>
+          <p class="small text-muted mb-0">{{ t.how_step1_desc }}</p>
         </div>
       </div>
-      {% endfor %}
+      <div class="col-md-3">
+        <div class="step-card">
+          <div class="step-num">2</div>
+          <i class="bi bi-gear-wide-connected fs-2 text-warning d-block my-3"></i>
+          <h6 class="fw-bold">{{ t.how_step2_title }}</h6>
+          <p class="small text-muted mb-0">{{ t.how_step2_desc }}</p>
+        </div>
+      </div>
+      <div class="col-md-3">
+        <div class="step-card">
+          <div class="step-num">3</div>
+          <i class="bi bi-diagram-3-fill fs-2 text-success d-block my-3"></i>
+          <h6 class="fw-bold">{{ t.how_step3_title }}</h6>
+          <p class="small text-muted mb-0">{{ t.how_step3_desc }}</p>
+        </div>
+      </div>
+      <div class="col-md-3">
+        <div class="step-card">
+          <div class="step-num">4</div>
+          <i class="bi bi-file-earmark-bar-graph-fill fs-2 text-danger d-block my-3"></i>
+          <h6 class="fw-bold">{{ t.how_step4_title }}</h6>
+          <p class="small text-muted mb-0">{{ t.how_step4_desc }}</p>
+        </div>
+      </div>
     </div>
   </div>
 </section>
@@ -270,10 +290,10 @@
   <div class="container">
     <div class="d-flex justify-content-between align-items-center mb-4 flex-wrap gap-2">
       <h4 class="fw-bold mb-0">
-        <i class="bi bi-clock-history me-2 text-primary"></i>Recent Assessments
+        <i class="bi bi-clock-history me-2 text-primary"></i>{{ t.recent_title }}
       </h4>
       <a href="/history" class="btn btn-outline-secondary btn-sm">
-        View All <i class="bi bi-arrow-right ms-1"></i>
+        {{ t.recent_view_all }} <i class="bi bi-arrow-right ms-1"></i>
       </a>
     </div>
     <div class="card shadow-sm">
@@ -282,8 +302,9 @@
           <table class="table table-hover align-middle mb-0">
             <thead class="table-dark">
               <tr>
-                <th>ID</th><th>Date</th><th>Age</th><th>Vehicle</th>
-                <th>Risk Score</th><th>Category</th><th>Premium ×</th><th></th>
+                <th>{{ t.tbl_id }}</th><th>{{ t.tbl_date }}</th><th>{{ t.tbl_age }}</th>
+                <th>{{ t.tbl_vehicle }}</th><th>{{ t.tbl_score }}</th>
+                <th>{{ t.tbl_cat }}</th><th>{{ t.tbl_premium }}</th><th></th>
               </tr>
             </thead>
             <tbody>

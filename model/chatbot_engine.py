@@ -1,5 +1,12 @@
 import re
+import os
 from datetime import datetime
+
+try:
+    import anthropic as _anthropic
+    _ANTHROPIC_AVAILABLE = True
+except ImportError:
+    _ANTHROPIC_AVAILABLE = False
 
 INTENTS = {
     'greeting': [
@@ -307,10 +314,52 @@ RESPONSES = {
 }
 
 
+_ENGINE_MODEL = 'claude-haiku-4-5-20251001'
+
+SYSTEM_PROMPT = """You are RiskBot, an expert AI assistant for RiskGuard AI — a road accident risk assessment platform for insurance companies.
+
+You help users understand:
+- Their insurance risk scores (0-100 scale)
+- Premium multipliers (Low: 1.0×, Medium: 1.35×, High: 1.75×, Very High: 2.3×)
+- Risk factors: driver age, experience, accidents, violations, vehicle type, location, credit score, night driving
+- How to reduce their risk score and premiums
+- Insurance coverage types (Third Party, TPFT, Comprehensive)
+- Telematics/black box insurance
+- No-Claims Bonus (NCB)
+- Young driver advice
+- The ML model (Random Forest/Gradient Boosting trained on 12,000 records)
+
+Risk score bands:
+- 0-25: Low Risk (green)
+- 26-50: Medium Risk (amber)
+- 51-75: High Risk (red)
+- 76-100: Very High Risk (purple)
+
+Key risk factor points:
+- Motorcycle: +18pts, Sports car: +12pts, Truck: +4pts, SUV: +3pts
+- Urban: +7pts, Highway: +4pts, Rural: +2pts
+- Each accident (3yr): +14pts
+- Age under 25 or over 65: higher risk
+- Credit score below 600: surcharge
+
+Always be helpful, concise, and professional. Answer in the same language the user writes in (English or Uzbek). If asked in Uzbek, reply in Uzbek. Keep responses focused and practical."""
+
+
 class RiskChatbot:
     def __init__(self):
         self.conversation_history = []
         self.response_indices = {intent: 0 for intent in RESPONSES}
+        api_key = os.environ.get('ANTHROPIC_API_KEY', '')
+        if _ANTHROPIC_AVAILABLE and api_key:
+            self._client = _anthropic.Anthropic(api_key=api_key)
+            self._use_ai = True
+        else:
+            self._client = None
+            self._use_ai = False
+
+    @property
+    def ai_enabled(self):
+        return self._use_ai
 
     def detect_intent(self, message: str) -> str:
         msg = message.lower().strip()
@@ -326,9 +375,33 @@ class RiskChatbot:
         self.response_indices[intent] = (idx + 1) % len(responses)
         return responses[idx]
 
+    def _ai_chat(self, user_message: str) -> str:
+        messages = []
+        for entry in self.conversation_history[-10:]:
+            role = 'user' if entry['role'] == 'user' else 'assistant'
+            messages.append({'role': role, 'content': entry['message']})
+        messages.append({'role': 'user', 'content': user_message})
+
+        response = self._client.messages.create(
+            model=_ENGINE_MODEL,
+            max_tokens=600,
+            system=SYSTEM_PROMPT,
+            messages=messages,
+        )
+        return response.content[0].text
+
     def chat(self, user_message: str) -> dict:
-        intent = self.detect_intent(user_message)
-        response = self.get_response(intent)
+        if self._use_ai:
+            try:
+                response = self._ai_chat(user_message)
+                intent = 'ai'
+            except Exception as e:
+                intent = self.detect_intent(user_message)
+                response = self.get_response(intent)
+        else:
+            intent = self.detect_intent(user_message)
+            response = self.get_response(intent)
+
         self.conversation_history.append({
             'role': 'user',
             'message': user_message,
@@ -343,6 +416,7 @@ class RiskChatbot:
         return {
             'response': response,
             'intent': intent,
+            'ai_powered': self._use_ai,
             'timestamp': datetime.now().strftime('%H:%M'),
         }
 

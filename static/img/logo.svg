@@ -1,12 +1,23 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 140 40">
-  <!-- Shield icon -->
-  <path d="M8 5L2 8.2V14c0 5.2 3.6 10.1 6 11C10.4 24.1 14 19.2 14 14V8.2L8 5z"
-        fill="#f0a500" opacity="0.9"/>
-  <path d="M5.5 13l2 2 4-4" stroke="#0d1b2a" stroke-width="1.5"
-        stroke-linecap="round" stroke-linejoin="round" fill="none"/>
-  <!-- Text -->
-  <text x="20" y="16" font-family="Segoe UI, sans-serif" font-size="11" font-weight="700"
-        fill="#ffffff" letter-spacing="0.5">RiskGuard</text>
-  <text x="20" y="29" font-family="Segoe UI, sans-serif" font-size="8" font-weight="400"
-        fill="#f0a500" letter-spacing="2">AI SYSTEM</text>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 160 44">
+  <defs>
+    <linearGradient id="sg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#ff9f0a"/>
+      <stop offset="100%" style="stop-color:#ffcc44"/>
+    </linearGradient>
+    <filter id="glow"><feGaussianBlur stdDeviation="1.5" result="blur"/><feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
+  </defs>
+  <!-- Shield with neural dot -->
+  <path d="M10 4L3 7.5V14c0 5.8 4 10.8 7 12 3-1.2 7-6.2 7-12V7.5L10 4z" fill="url(#sg)" filter="url(#glow)"/>
+  <!-- Neural nodes inside shield -->
+  <circle cx="8"  cy="12" r="1.5" fill="#0d1b2a" opacity=".8"/>
+  <circle cx="12" cy="10" r="1.5" fill="#0d1b2a" opacity=".8"/>
+  <circle cx="12" cy="14" r="1.5" fill="#0d1b2a" opacity=".8"/>
+  <line x1="8" y1="12" x2="12" y2="10" stroke="#0d1b2a" stroke-width="1" opacity=".6"/>
+  <line x1="8" y1="12" x2="12" y2="14" stroke="#0d1b2a" stroke-width="1" opacity=".6"/>
+  <!-- Text: RiskGuard -->
+  <text x="24" y="17" font-family="'Inter','Segoe UI',sans-serif" font-size="13" font-weight="800" fill="#ffffff" letter-spacing="-.3">RiskGuard</text>
+  <!-- Text: AI -->
+  <text x="112" y="17" font-family="'Inter','Segoe UI',sans-serif" font-size="13" font-weight="900" fill="url(#sg)" letter-spacing="0">AI</text>
+  <!-- Subtitle -->
+  <text x="24" y="30" font-family="'Inter','Segoe UI',sans-serif" font-size="6.5" font-weight="500" fill="rgba(255,255,255,.45)" letter-spacing="2.5">RISK INTELLIGENCE</text>
 </svg>

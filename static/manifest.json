@@ -1,0 +1,19 @@
+{
+  "name": "RiskGuard AI",
+  "short_name": "RiskGuard",
+  "description": "Road Accident Risk Assessment System",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#04080f",
+  "theme_color": "#ff9f0a",
+  "orientation": "portrait-primary",
+  "icons": [
+    { "src": "/static/img/favicon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any maskable" }
+  ],
+  "categories": ["business", "finance", "productivity"],
+  "shortcuts": [
+    { "name": "New Assessment", "url": "/assessment", "description": "Start a new risk assessment" },
+    { "name": "History", "url": "/history", "description": "View assessment history" },
+    { "name": "AI Chatbot", "url": "/chatbot", "description": "Chat with RiskBot" }
+  ]
+}

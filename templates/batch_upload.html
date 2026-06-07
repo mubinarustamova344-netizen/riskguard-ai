@@ -1,0 +1,221 @@
+{% extends "base.html" %}
+{% block title %}Batch CSV Upload – RiskGuard AI{% endblock %}
+{% block head %}
+<style>
+.drop-zone {
+  border: 2px dashed var(--border);
+  border-radius: 20px;
+  padding: 3rem 2rem;
+  text-align: center;
+  transition: all .3s;
+  cursor: pointer;
+  background: var(--bg);
+}
+.drop-zone.dragover { border-color: var(--accent); background: rgba(255,159,10,.06); }
+.drop-zone:hover { border-color: var(--accent); }
+.result-row-low    { background: rgba(16,185,129,.08); }
+.result-row-medium { background: rgba(245,158,11,.08); }
+.result-row-high   { background: rgba(239,68,68,.08); }
+.result-row-very-high { background: rgba(124,58,237,.08); }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container py-5">
+  <div class="rg-page-header mb-4">
+    <h2><i class="bi bi-file-earmark-arrow-up me-2" style="color:var(--accent);"></i>
+      {% if lang=='uz' %}Batch CSV Yuklash{% else %}Batch CSV Upload{% endif %}
+    </h2>
+    <p class="text-muted">{% if lang=='uz' %}Bir vaqtda 100+ haydovchini baholash{% else %}Assess 100+ drivers at once from a CSV file{% endif %}</p>
+  </div>
+
+  <div class="row g-4">
+    <div class="col-lg-5">
+      <!-- Upload card -->
+      <div class="card shadow-sm mb-4">
+        <div class="card-header rg-card-header">
+          <i class="bi bi-upload me-2"></i>{% if lang=='uz' %}Fayl yuklash{% else %}Upload File{% endif %}
+        </div>
+        <div class="card-body">
+          <div class="drop-zone" id="dropZone" onclick="document.getElementById('csvFile').click()">
+            <i class="bi bi-file-earmark-spreadsheet d-block mb-3" style="font-size:3rem;color:var(--accent);"></i>
+            <h5 class="fw-bold">{% if lang=='uz' %}CSV faylni shu yerga tashlang{% else %}Drop CSV file here{% endif %}</h5>
+            <p class="text-muted small mb-3">{% if lang=='uz' %}yoki bosib tanlang{% else %}or click to browse{% endif %}</p>
+            <span class="badge bg-secondary" id="fileName">{% if lang=='uz' %}Fayl tanlanmagan{% else %}No file selected{% endif %}</span>
+          </div>
+          <input type="file" id="csvFile" accept=".csv" class="d-none" onchange="fileSelected(this)">
+          <button class="btn btn-warning w-100 mt-3 fw-bold" onclick="uploadCSV()" id="uploadBtn" disabled>
+            <i class="bi bi-cpu me-2"></i>{% if lang=='uz' %}Hammasini baholash{% else %}Assess All Drivers{% endif %}
+          </button>
+        </div>
+      </div>
+
+      <!-- Format guide -->
+      <div class="card shadow-sm">
+        <div class="card-header rg-card-header">
+          <i class="bi bi-info-circle me-2 text-info"></i>{% if lang=='uz' %}CSV format{% else %}CSV Format{% endif %}
+        </div>
+        <div class="card-body">
+          <p class="small text-muted mb-2">{% if lang=='uz' %}Ustun nomlari (inglizcha):{% else %}Required column headers:{% endif %}</p>
+          <code style="font-size:.75rem;line-height:1.8;">
+            driver_age, driving_experience,<br>
+            annual_mileage, vehicle_age,<br>
+            previous_accidents, traffic_violations,<br>
+            night_driving_pct, credit_score,<br>
+            vehicle_type, primary_location,<br>
+            marital_status, gender
+          </code>
+          <div class="mt-3">
+            <button class="btn btn-outline-success btn-sm w-100" onclick="downloadTemplate()">
+              <i class="bi bi-download me-1"></i>{% if lang=='uz' %}Namuna CSV yuklash{% else %}Download Template{% endif %}
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="col-lg-7">
+      <!-- Progress -->
+      <div class="card shadow-sm mb-4 d-none" id="progressCard">
+        <div class="card-body text-center py-4">
+          <div class="spinner-border text-warning mb-3" role="status"></div>
+          <h5 class="fw-bold">{% if lang=='uz' %}Baholanmoqda...{% else %}Processing...{% endif %}</h5>
+          <p class="text-muted small">{% if lang=='uz' %}ML model har bir haydovchini baholayapti{% else %}ML model is assessing each driver{% endif %}</p>
+        </div>
+      </div>
+
+      <!-- Summary -->
+      <div class="d-none" id="summaryCard">
+        <div class="row g-3 mb-4">
+          <div class="col-4">
+            <div class="kpi-box text-center">
+              <div class="kpi-box-val text-success" id="totalSaved">0</div>
+              <div class="kpi-box-lbl">{% if lang=='uz' %}Saqlandi{% else %}Saved{% endif %}</div>
+            </div>
+          </div>
+          <div class="col-4">
+            <div class="kpi-box text-center">
+              <div class="kpi-box-val text-danger" id="totalErrors">0</div>
+              <div class="kpi-box-lbl">{% if lang=='uz' %}Xatolar{% else %}Errors{% endif %}</div>
+            </div>
+          </div>
+          <div class="col-4">
+            <div class="kpi-box text-center">
+              <div class="kpi-box-val text-warning" id="avgScore">—</div>
+              <div class="kpi-box-lbl">{% if lang=='uz' %}O'rtacha ball{% else %}Avg Score{% endif %}</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="card shadow-sm">
+          <div class="card-header rg-card-header d-flex justify-content-between align-items-center">
+            <span><i class="bi bi-table me-2"></i>{% if lang=='uz' %}Natijalar{% else %}Results{% endif %}</span>
+            <a href="/history" class="btn btn-sm btn-outline-light">
+              <i class="bi bi-clock-history me-1"></i>{% if lang=='uz' %}Tarixda ko'rish{% else %}View History{% endif %}
+            </a>
+          </div>
+          <div class="card-body p-0">
+            <div class="table-responsive" style="max-height:380px;overflow-y:auto;">
+              <table class="table table-sm align-middle mb-0">
+                <thead class="table-dark sticky-top">
+                  <tr>
+                    <th>#</th>
+                    <th>{% if lang=='uz' %}Ball{% else %}Score{% endif %}</th>
+                    <th>{% if lang=='uz' %}Kategoriya{% else %}Category{% endif %}</th>
+                    <th>Premium</th>
+                  </tr>
+                </thead>
+                <tbody id="resultsBody"></tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Empty state -->
+      <div class="text-center py-5" id="emptyState">
+        <i class="bi bi-file-earmark-spreadsheet d-block mb-3" style="font-size:4rem;color:var(--border);"></i>
+        <p class="text-muted">{% if lang=='uz' %}CSV fayl yuklang va natijalar shu yerda ko'rinadi{% else %}Upload a CSV file to see results here{% endif %}</p>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+const dropZone = document.getElementById('dropZone');
+let selectedFile = null;
+
+dropZone.addEventListener('dragover', e => { e.preventDefault(); dropZone.classList.add('dragover'); });
+dropZone.addEventListener('dragleave', () => dropZone.classList.remove('dragover'));
+dropZone.addEventListener('drop', e => {
+  e.preventDefault(); dropZone.classList.remove('dragover');
+  const f = e.dataTransfer.files[0];
+  if (f && f.name.endsWith('.csv')) setFile(f);
+});
+
+function fileSelected(input) { if (input.files[0]) setFile(input.files[0]); }
+function setFile(f) {
+  selectedFile = f;
+  document.getElementById('fileName').textContent = f.name;
+  document.getElementById('fileName').className = 'badge bg-success';
+  document.getElementById('uploadBtn').disabled = false;
+}
+
+async function uploadCSV() {
+  if (!selectedFile) return;
+  document.getElementById('progressCard').classList.remove('d-none');
+  document.getElementById('emptyState').classList.add('d-none');
+  document.getElementById('summaryCard').classList.add('d-none');
+  document.getElementById('uploadBtn').disabled = true;
+
+  const fd = new FormData();
+  fd.append('file', selectedFile);
+
+  try {
+    const res = await fetch('/api/batch-upload', { method: 'POST', body: fd });
+    const data = await res.json();
+    document.getElementById('progressCard').classList.add('d-none');
+
+    if (data.error) { showToast(data.error, 'danger', 4000); document.getElementById('uploadBtn').disabled = false; return; }
+
+    document.getElementById('summaryCard').classList.remove('d-none');
+    document.getElementById('totalSaved').textContent = data.saved;
+    document.getElementById('totalErrors').textContent = data.errors;
+
+    const scores = data.results.map(r => r.risk_score);
+    const avg = scores.length ? Math.round(scores.reduce((a,b)=>a+b,0)/scores.length*10)/10 : '—';
+    document.getElementById('avgScore').textContent = avg;
+
+    const CAT = {'Low':'low','Medium':'medium','High':'high','Very High':'very-high'};
+    document.getElementById('resultsBody').innerHTML = data.results.map(r => `
+      <tr class="result-row-${(CAT[r.risk_category]||'low')}">
+        <td class="text-muted small">${r.row}</td>
+        <td class="fw-bold">${r.risk_score}</td>
+        <td><span class="badge rg-badge-${CAT[r.risk_category]||'low'}">${r.risk_category}</span></td>
+        <td>${r.premium}×</td>
+      </tr>`).join('');
+
+    showToast(`${data.saved} ta haydovchi muvaffaqiyatli baholandi!`, 'success', 3000);
+  } catch(e) {
+    document.getElementById('progressCard').classList.add('d-none');
+    showToast('Upload failed', 'danger', 3000);
+    document.getElementById('uploadBtn').disabled = false;
+  }
+}
+
+function downloadTemplate() {
+  const csv = `driver_age,driving_experience,annual_mileage,vehicle_age,previous_accidents,traffic_violations,night_driving_pct,credit_score,vehicle_type,primary_location,marital_status,gender
+25,3,18000,4,0,1,30,650,sedan,urban,single,male
+35,12,12000,2,1,0,15,720,suv,suburban,married,female
+19,1,8000,6,0,0,40,580,sports,urban,single,male
+45,22,9000,1,0,0,10,780,sedan,rural,married,female
+30,8,25000,8,2,1,25,620,motorcycle,highway,divorced,male`;
+  const a = document.createElement('a');
+  a.href = 'data:text/csv;charset=utf-8,' + encodeURIComponent(csv);
+  a.download = 'riskguard_template.csv';
+  a.click();
+}
+</script>
+{% endblock %}

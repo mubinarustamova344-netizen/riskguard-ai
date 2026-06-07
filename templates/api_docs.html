@@ -1,0 +1,129 @@
+{% extends "base.html" %}
+{% block title %}API Documentation – RiskGuard AI{% endblock %}
+{% block head %}
+<style>
+.endpoint-card { border-radius:16px;border:1px solid var(--border);background:var(--card);margin-bottom:1rem;overflow:hidden;transition:all .3s; }
+.endpoint-card:hover { box-shadow:0 8px 24px rgba(0,0,0,.1); }
+.endpoint-header { padding:.85rem 1.25rem;display:flex;align-items:center;gap:.75rem;cursor:pointer; }
+.method { padding:.25rem .7rem;border-radius:8px;font-weight:800;font-size:.75rem;letter-spacing:.04em;min-width:60px;text-align:center; }
+.method-get  { background:#10b98120;color:#10b981; }
+.method-post { background:#3b82f620;color:#3b82f6; }
+.method-delete { background:#ef444420;color:#ef4444; }
+.method-patch  { background:#f59e0b20;color:#f59e0b; }
+.endpoint-path { font-family:monospace;font-weight:700;font-size:.9rem; }
+.endpoint-body { padding:0 1.25rem 1.25rem;border-top:1px solid var(--border);display:none; }
+.endpoint-body.open { display:block; }
+.param-table td,th { padding:.45rem .75rem;font-size:.82rem; }
+.code-block { background:var(--navy);color:#e2e8f0;border-radius:12px;padding:1rem;font-family:monospace;font-size:.8rem;overflow-x:auto; }
+.tag { display:inline-block;padding:.2rem .6rem;border-radius:6px;font-size:.72rem;font-weight:600; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container py-5">
+
+  <div class="rg-page-header mb-4">
+    <h2><i class="bi bi-braces me-2" style="color:var(--accent);"></i>API Documentation</h2>
+    <p class="text-muted">RiskGuard AI — REST API Reference &nbsp;|&nbsp; Base URL: <code>http://127.0.0.1:5000</code></p>
+  </div>
+
+  <!-- Auth note -->
+  <div class="alert alert-warning d-flex gap-2 align-items-start mb-4" style="border-radius:14px;">
+    <i class="bi bi-shield-lock-fill mt-1"></i>
+    <div><strong>Authentication required</strong> — All API endpoints require an active admin session. Login at <code>/login</code> first.</div>
+  </div>
+
+  {% for group, endpoints in [
+    ('Risk Assessment', [
+      ('POST','/api/assess','Run risk assessment','Submit driver profile, get risk score + recommendations',
+       [('driver_age','int','Driver age 18-80'),('driving_experience','int','Years of experience'),
+        ('annual_mileage','int','Miles per year'),('vehicle_age','int','Vehicle age in years'),
+        ('previous_accidents','int','Accidents in last 3 years'),('traffic_violations','int','Violations last 3yr'),
+        ('night_driving_pct','int','% of night driving 0-100'),('credit_score','int','Credit score 300-850'),
+        ('vehicle_type','str','sedan/suv/sports/truck/van/motorcycle'),
+        ('primary_location','str','urban/suburban/rural/highway'),
+        ('marital_status','str','single/married/divorced'),('gender','str','male/female')],
+       '{"risk_score":42.5,"risk_category":"Medium","premium_multiplier":1.35,"claim_probability":0.28,"confidence":88.2,"recommendations":[...]}'),
+      ('POST','/api/batch-upload','Batch CSV assessment','Upload CSV file, assess all rows at once',[],'{"saved":50,"errors":0,"results":[...]}'),
+      ('POST','/api/compare','Compare two profiles','Side-by-side risk comparison of two drivers',
+       [('profile_a','object','First driver input data'),('profile_b','object','Second driver input data')],
+       '{"profile_a":{...},"profile_b":{...}}'),
+    ]),
+    ('Assessment History', [
+      ('GET','/api/history','Get all assessments','Returns last 200 assessments',[],
+       '[{"id":1,"risk_score":42.5,"risk_category":"Medium",...}]'),
+      ('DELETE','/api/assessment/{id}','Delete assessment','Delete single assessment by ID',[('id','int','Assessment ID')],
+       '{"status":"deleted","id":1}'),
+      ('PATCH','/api/assessment/{id}/status','Update status','Change assessment status',
+       [('status','str','Pending / Reviewed / Approved')],
+       '{"status":"Approved"}'),
+      ('PATCH','/api/assessment/{id}/notes','Update notes','Add admin note to assessment',
+       [('notes','str','Note text max 1000 chars')],
+       '{"notes":"Reviewed by admin"}'),
+      ('POST','/api/bulk-delete','Bulk delete','Delete multiple assessments',
+       [('ids','array','List of assessment IDs')],
+       '{"deleted":5}'),
+      ('GET','/api/export-csv','Export to CSV','Download all assessments as CSV file',[],
+       'CSV file download'),
+    ]),
+    ('Analytics', [
+      ('GET','/api/stats','Dashboard stats','Category distribution, score averages, monthly trend',[],
+       '{"total":150,"category_distribution":{...},"avg_risk_score":38.4}'),
+      ('GET','/api/model-metrics','ML model metrics','Accuracy, CV score, feature importance, all model results',[],
+       '{"best_model":"Gradient Boosting (Tuned)","best_accuracy":0.8717,...}'),
+      ('GET','/api/age-distribution','Age distribution','Grouped age histogram data',[],
+       '{"18-24":45,"25-34":82,...}'),
+      ('GET','/api/score-distribution','Score distribution','Risk score bucket counts',[],
+       '{"0-20":30,"21-40":95,...}'),
+    ]),
+    ('Chatbot', [
+      ('POST','/api/chat','Send message','Send message to RiskGuard NLP Engine',
+       [('message','str','User message text')],
+       '{"response":"...","intent":"ask_premium","ai_powered":true,"timestamp":"14:32"}'),
+      ('POST','/api/chat/reset','Reset conversation','Clear chatbot conversation history',[],
+       '{"status":"ok"}'),
+    ]),
+  ] %}
+  <h5 class="fw-bold mb-3 mt-4" style="color:var(--accent);">
+    <i class="bi bi-folder2-open me-2"></i>{{ group }}
+  </h5>
+  {% for method, path, title, desc, params, resp in endpoints %}
+  <div class="endpoint-card">
+    <div class="endpoint-header" onclick="toggle(this)">
+      <span class="method method-{{ method.lower() }}">{{ method }}</span>
+      <span class="endpoint-path">{{ path }}</span>
+      <span class="text-muted small ms-2">{{ title }}</span>
+      <i class="bi bi-chevron-down ms-auto text-muted"></i>
+    </div>
+    <div class="endpoint-body">
+      <p class="text-muted small mt-2 mb-3">{{ desc }}</p>
+      {% if params %}
+      <h6 class="fw-semibold small mb-2">Parameters (JSON body):</h6>
+      <table class="table table-sm mb-3" style="border-radius:10px;overflow:hidden;">
+        <thead class="table-dark"><tr><th>Field</th><th>Type</th><th>Description</th></tr></thead>
+        <tbody>
+          {% for p in params %}
+          <tr><td><code>{{ p[0] }}</code></td><td><span class="tag bg-info text-white">{{ p[1] }}</span></td><td class="text-muted">{{ p[2] }}</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+      {% endif %}
+      <h6 class="fw-semibold small mb-2">Response example:</h6>
+      <div class="code-block">{{ resp }}</div>
+    </div>
+  </div>
+  {% endfor %}
+  {% endfor %}
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+function toggle(header) {
+  const body = header.nextElementSibling;
+  const icon = header.querySelector('.bi-chevron-down, .bi-chevron-up');
+  body.classList.toggle('open');
+  icon.className = body.classList.contains('open') ? 'bi bi-chevron-up ms-auto text-muted' : 'bi bi-chevron-down ms-auto text-muted';
+}
+</script>
+{% endblock %}

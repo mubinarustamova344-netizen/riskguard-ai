@@ -28,14 +28,27 @@ function appendBotBubble(text, time) {
   if (!messagesEl) return;
   var wrap = document.createElement('div');
   wrap.className = 'chat-bubble-wrap bot';
+  var bubbleId = 'bubble_' + Date.now();
   wrap.innerHTML =
     '<div class="bot-avatar-sm"><i class="bi bi-robot"></i></div>' +
     '<div>' +
-      '<div class="chat-bubble bot-bubble">' + mdToHtml(text) + '</div>' +
+      '<div class="chat-bubble bot-bubble" id="' + bubbleId + '"></div>' +
       '<div class="chat-time bot-time">' + (time || '') + '</div>' +
     '</div>';
   messagesEl.appendChild(wrap);
   scrollToBottom();
+  // Typewriter effect
+  typeWriter(document.getElementById(bubbleId), text, 0);
+}
+
+function typeWriter(el, fullText, i) {
+  if (!el) return;
+  var html = mdToHtml(fullText.substring(0, i));
+  el.innerHTML = html + (i < fullText.length ? '<span class="cursor-blink">▋</span>' : '');
+  if (i < fullText.length) {
+    var speed = fullText[i] === '\n' ? 30 : (i % 3 === 0 ? 22 : 18);
+    setTimeout(function() { typeWriter(el, fullText, i + 1); scrollToBottom(); }, speed);
+  }
 }
 
 function showTypingIndicator() {
@@ -129,6 +142,39 @@ function mdToHtml(text) {
     .replace(/`(.*?)`/g, '<code>$1</code>')
     .replace(/\n\n/g, '<br><br>')
     .replace(/\n/g, '<br>');
+}
+
+// ── Voice Input ───────────────────────────────────────────────
+var recognition = null;
+function startVoice() {
+  var SpeechRec = window.SpeechRecognition || window.webkitSpeechRecognition;
+  if (!SpeechRec) { showToast('Browser does not support voice input', 'warning', 2000); return; }
+  if (recognition) { recognition.stop(); recognition = null; setVoiceBtn(false); return; }
+  recognition = new SpeechRec();
+  recognition.continuous = false;
+  recognition.interimResults = true;
+  recognition.lang = 'en-US';
+  setVoiceBtn(true);
+  recognition.onresult = function(e) {
+    var t = Array.from(e.results).map(r => r[0].transcript).join('');
+    if (chatInputEl) chatInputEl.value = t;
+  };
+  recognition.onend = function() { setVoiceBtn(false); recognition = null; };
+  recognition.onerror = function() { setVoiceBtn(false); recognition = null; };
+  recognition.start();
+}
+function setVoiceBtn(active) {
+  var btn = document.getElementById('voiceBtn');
+  if (!btn) return;
+  if (active) {
+    btn.innerHTML = '<i class="bi bi-mic-fill"></i>';
+    btn.style.color = '#ef4444';
+    btn.style.animation = 'voicePulse 1s infinite';
+  } else {
+    btn.innerHTML = '<i class="bi bi-mic"></i>';
+    btn.style.color = '';
+    btn.style.animation = '';
+  }
 }
 
 // Enter key

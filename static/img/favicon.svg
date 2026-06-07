@@ -1,7 +1,19 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32">
-  <rect width="32" height="32" rx="8" fill="#0d1b2a"/>
-  <path d="M16 4.5L5.5 9.2V16c0 6.4 4.5 12.4 10.5 13.5C22 28.4 26.5 22.4 26.5 16V9.2L16 4.5z"
-        fill="none" stroke="#f0a500" stroke-width="2" stroke-linejoin="round"/>
-  <path d="M12 16l2.5 2.5L20 12" stroke="#f0a500" stroke-width="2.2"
-        stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+  <defs>
+    <linearGradient id="g" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#ff9f0a"/>
+      <stop offset="100%" style="stop-color:#ffcc44"/>
+    </linearGradient>
+    <linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#04080f"/>
+      <stop offset="100%" style="stop-color:#0d1b2a"/>
+    </linearGradient>
+  </defs>
+  <rect width="32" height="32" rx="8" fill="url(#bg)"/>
+  <path d="M16 4L6 8.5V16c0 7 6.5 11.5 10 12.5 3.5-1 10-5.5 10-12.5V8.5L16 4z" fill="url(#g)" opacity=".95"/>
+  <circle cx="13" cy="15" r="1.8" fill="#04080f"/>
+  <circle cx="19" cy="12" r="1.8" fill="#04080f"/>
+  <circle cx="19" cy="18" r="1.8" fill="#04080f"/>
+  <line x1="13" y1="15" x2="19" y2="12" stroke="#04080f" stroke-width="1.2"/>
+  <line x1="13" y1="15" x2="19" y2="18" stroke="#04080f" stroke-width="1.2"/>
 </svg>

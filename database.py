@@ -32,6 +32,10 @@ class Assessment(db.Model):
     claim_probability = db.Column(db.Float)
     recommendations_json = db.Column(db.Text)
 
+    # Admin fields
+    status = db.Column(db.String(20), default='Pending')
+    notes = db.Column(db.Text, default='')
+
     def to_dict(self):
         return {
             'id': self.id,
@@ -53,4 +57,6 @@ class Assessment(db.Model):
             'premium_multiplier': self.premium_multiplier,
             'claim_probability': self.claim_probability,
             'recommendations': json.loads(self.recommendations_json or '[]'),
+            'status': self.status or 'Pending',
+            'notes': self.notes or '',
         }

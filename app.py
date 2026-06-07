@@ -5,6 +5,12 @@ import csv
 import json
 import logging
 from datetime import timedelta
+from reportlab.lib.pagesizes import A4
+from reportlab.lib import colors
+from reportlab.lib.units import cm
+from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle, HRFlowable
+from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+from reportlab.lib.enums import TA_CENTER, TA_LEFT
 from logging.handlers import RotatingFileHandler
 from dotenv import load_dotenv
 from flask import Flask, render_template, request, jsonify, Response, redirect, url_for, flash
@@ -16,8 +22,9 @@ from flask_wtf.csrf import CSRFProtect
 from werkzeug.security import generate_password_hash, check_password_hash
 from sqlalchemy import func
 from database import db, Assessment
-from model.risk_model import load_model, load_metrics, predict_risk, compute_factor_contributions
+from model.risk_model import load_model, load_metrics, predict_risk, compute_factor_contributions, compute_improvement_roadmap
 from model.chatbot_engine import RiskChatbot
+from lang import TRANSLATIONS, get_lang
 
 load_dotenv()
 
@@ -48,6 +55,13 @@ app.config.update(
 
 CORS(app, resources={r"/api/*": {"origins": ["http://127.0.0.1", "http://localhost"]}})
 csrf = CSRFProtect(app)
+
+
+@app.context_processor
+def inject_lang():
+    from flask import session as _s
+    lang = get_lang(_s)
+    return dict(t=TRANSLATIONS.get(lang, TRANSLATIONS['en']), lang=lang)
 
 # ── Auth ───────────────────────────────────────────────────────────────────────
 login_manager = LoginManager(app)
@@ -173,6 +187,14 @@ def login():
     return render_template('login.html')
 
 
+@app.route('/set-lang/<lang>')
+def set_lang(lang):
+    from flask import session as _s
+    if lang in ('en', 'uz'):
+        _s['lang'] = lang
+    return redirect(request.referrer or url_for('index'))
+
+
 @app.route('/logout')
 @login_required
 def logout():
@@ -208,25 +230,47 @@ def dashboard():
 @app.route('/chatbot')
 @login_required
 def chatbot_page():
-    return render_template('chatbot.html')
+    return render_template('chatbot.html', ai_enabled=chatbot.ai_enabled)
 
 
 @app.route('/history')
 @login_required
 def history():
+    from datetime import datetime as dt
     page = request.args.get('page', 1, type=int)
     per_page = 15
-    cat_filter = request.args.get('category', '').strip()
+    cat_filter  = request.args.get('category', '').strip()
+    date_from   = request.args.get('date_from', '').strip()
+    date_to     = request.args.get('date_to', '').strip()
     if cat_filter and cat_filter not in VALID_CATEGORIES:
         cat_filter = ''
     query = Assessment.query.order_by(Assessment.created_at.desc())
     if cat_filter:
         query = query.filter_by(risk_category=cat_filter)
+    if date_from:
+        try:
+            query = query.filter(Assessment.created_at >= dt.strptime(date_from, '%Y-%m-%d'))
+        except ValueError:
+            pass
+    if date_to:
+        try:
+            query = query.filter(Assessment.created_at <= dt.strptime(date_to + ' 23:59:59', '%Y-%m-%d %H:%M:%S'))
+        except ValueError:
+            pass
     pagination = query.paginate(page=page, per_page=per_page, error_out=False)
     return render_template('history.html',
                            assessments=pagination.items,
                            pagination=pagination,
-                           cat_filter=cat_filter)
+                           cat_filter=cat_filter,
+                           date_from=date_from,
+                           date_to=date_to)
+
+
+@app.route('/model-report')
+@login_required
+def model_report():
+    metrics = load_metrics()
+    return render_template('model_report.html', metrics=metrics)
 
 
 @app.route('/about')
@@ -239,7 +283,40 @@ def about():
 @login_required
 def report(assessment_id):
     record = Assessment.query.get_or_404(assessment_id)
-    return render_template('report.html', assessment=record.to_dict())
+    data = record.to_dict()
+
+    # Benchmark: % of drivers with higher risk score
+    total = Assessment.query.count()
+    worse = Assessment.query.filter(Assessment.risk_score > record.risk_score).count()
+    data['benchmark_pct'] = round((worse / total * 100) if total else 50, 1)
+
+    # Improvement roadmap
+    if model:
+        input_data = {
+            'driver_age': record.driver_age, 'driving_experience': record.driving_experience,
+            'annual_mileage': record.annual_mileage, 'vehicle_age': record.vehicle_age,
+            'previous_accidents': record.previous_accidents, 'traffic_violations': record.traffic_violations,
+            'night_driving_pct': record.night_driving_pct, 'credit_score': record.credit_score,
+            'vehicle_type': record.vehicle_type, 'primary_location': record.primary_location,
+            'marital_status': record.marital_status, 'gender': record.gender,
+        }
+        data['roadmap'] = compute_improvement_roadmap(model, input_data, record.risk_score)
+        data['confidence'] = predict_risk(model, input_data).get('confidence', 85.0)
+    else:
+        data['roadmap'] = []
+        data['confidence'] = 85.0
+
+    # Trend: last 8 assessments (most recent first)
+    trend = Assessment.query.order_by(Assessment.created_at.desc()).limit(8).all()
+    data['trend'] = [{'date': r.created_at.strftime('%d %b'), 'score': r.risk_score} for r in reversed(trend)]
+
+    return render_template('report.html', assessment=data)
+
+
+@app.route('/simulator')
+@login_required
+def simulator():
+    return render_template('simulator.html')
 
 
 @app.route('/quote')
@@ -520,6 +597,353 @@ def api_score_distribution():
         elif s <= 80:  buckets['61-80']  += 1
         else:          buckets['81-100'] += 1
     return jsonify(buckets)
+
+
+@app.route('/api/assessment/<int:assessment_id>', methods=['DELETE'])
+@csrf.exempt
+@login_required
+def api_delete_assessment(assessment_id):
+    record = Assessment.query.get_or_404(assessment_id)
+    db.session.delete(record)
+    db.session.commit()
+    logger.info('Assessment #%d deleted by admin', assessment_id)
+    return jsonify({'status': 'deleted', 'id': assessment_id})
+
+
+@app.route('/api/assessment/<int:assessment_id>/status', methods=['PATCH'])
+@csrf.exempt
+@login_required
+def api_update_status(assessment_id):
+    record = Assessment.query.get_or_404(assessment_id)
+    data = request.get_json(silent=True) or {}
+    new_status = data.get('status', '')
+    if new_status not in ('Pending', 'Reviewed', 'Approved'):
+        return jsonify({'error': 'Invalid status'}), 400
+    record.status = new_status
+    db.session.commit()
+    return jsonify({'status': new_status})
+
+
+@app.route('/api/assessment/<int:assessment_id>/notes', methods=['PATCH'])
+@csrf.exempt
+@login_required
+def api_update_notes(assessment_id):
+    record = Assessment.query.get_or_404(assessment_id)
+    data = request.get_json(silent=True) or {}
+    record.notes = str(data.get('notes', ''))[:1000]
+    db.session.commit()
+    return jsonify({'notes': record.notes})
+
+
+@app.route('/api/bulk-delete', methods=['POST'])
+@csrf.exempt
+@login_required
+def api_bulk_delete():
+    data = request.get_json(silent=True) or {}
+    ids = [int(i) for i in data.get('ids', []) if str(i).isdigit()]
+    if not ids:
+        return jsonify({'error': 'No IDs provided'}), 400
+    deleted = Assessment.query.filter(Assessment.id.in_(ids)).delete(synchronize_session=False)
+    db.session.commit()
+    logger.info('Bulk delete: %d records by admin', deleted)
+    return jsonify({'deleted': deleted})
+
+
+@app.route('/report/<int:assessment_id>/pdf')
+@login_required
+def download_pdf(assessment_id):
+    r = Assessment.query.get_or_404(assessment_id)
+    buf = io.BytesIO()
+
+    doc = SimpleDocTemplate(buf, pagesize=A4,
+                            leftMargin=2*cm, rightMargin=2*cm,
+                            topMargin=2*cm, bottomMargin=2*cm)
+    styles = getSampleStyleSheet()
+    navy = colors.HexColor('#0d1b2a')
+    accent = colors.HexColor('#f59e0b')
+    cat_color = {'Low': colors.HexColor('#22c55e'),
+                 'Medium': colors.HexColor('#f59e0b'),
+                 'High': colors.HexColor('#ef4444'),
+                 'Very High': colors.HexColor('#7c3aed')}.get(r.risk_category, colors.grey)
+
+    title_style = ParagraphStyle('title', fontSize=20, textColor=colors.white,
+                                 fontName='Helvetica-Bold', alignment=TA_CENTER, spaceAfter=4)
+    sub_style   = ParagraphStyle('sub',   fontSize=10, textColor=colors.HexColor('#94a3b8'),
+                                 alignment=TA_CENTER, spaceAfter=0)
+    h2_style    = ParagraphStyle('h2',    fontSize=12, textColor=navy,
+                                 fontName='Helvetica-Bold', spaceBefore=12, spaceAfter=6)
+    body_style  = ParagraphStyle('body',  fontSize=9,  textColor=colors.HexColor('#334155'),
+                                 leading=14)
+    rec_style   = ParagraphStyle('rec',   fontSize=9,  textColor=colors.HexColor('#1e293b'),
+                                 leading=13, leftIndent=8)
+
+    story = []
+
+    # ── Header banner ──
+    header_data = [[Paragraph('RiskGuard AI', title_style)],
+                   [Paragraph('Assessment Report', sub_style)],
+                   [Paragraph(f'#{r.id}  •  {r.created_at.strftime("%d %B %Y  %H:%M")}', sub_style)]]
+    ht = Table(header_data, colWidths=[17*cm])
+    ht.setStyle(TableStyle([
+        ('BACKGROUND', (0,0), (-1,-1), navy),
+        ('TOPPADDING',    (0,0), (-1,0), 14),
+        ('BOTTOMPADDING', (0,-1), (-1,-1), 14),
+        ('LEFTPADDING',   (0,0), (-1,-1), 10),
+        ('RIGHTPADDING',  (0,0), (-1,-1), 10),
+    ]))
+    story.append(ht)
+    story.append(Spacer(1, 0.4*cm))
+
+    # ── Risk score box ──
+    score_data = [[
+        Paragraph(f'<font size=30><b>{r.risk_score}</b></font><br/><font size=9 color="#94a3b8">Risk Score</font>', styles['Normal']),
+        Paragraph(f'<font size=16><b>{r.risk_category} Risk</b></font><br/><font size=9 color="#94a3b8">Category</font>', styles['Normal']),
+        Paragraph(f'<font size=16><b>{r.premium_multiplier}×</b></font><br/><font size=9 color="#94a3b8">Premium Multiplier</font>', styles['Normal']),
+        Paragraph(f'<font size=16><b>{round(r.claim_probability*100)}%</b></font><br/><font size=9 color="#94a3b8">Claim Probability</font>', styles['Normal']),
+    ]]
+    st = Table(score_data, colWidths=[4*cm, 5*cm, 4*cm, 4*cm])
+    st.setStyle(TableStyle([
+        ('BACKGROUND', (0,0), (-1,-1), colors.HexColor('#f8fafc')),
+        ('BOX',        (0,0), (-1,-1), 1.5, cat_color),
+        ('TEXTCOLOR',  (0,0), (0,0), cat_color),
+        ('TEXTCOLOR',  (1,0), (1,0), cat_color),
+        ('ALIGN',      (0,0), (-1,-1), 'CENTER'),
+        ('VALIGN',     (0,0), (-1,-1), 'MIDDLE'),
+        ('TOPPADDING', (0,0), (-1,-1), 10),
+        ('BOTTOMPADDING', (0,0), (-1,-1), 10),
+    ]))
+    story.append(st)
+    story.append(Spacer(1, 0.4*cm))
+
+    # ── Driver & Vehicle details ──
+    story.append(Paragraph('Driver Profile', h2_style))
+    driver_rows = [
+        ['Age', f'{r.driver_age} years',          'Experience', f'{r.driving_experience} years'],
+        ['Gender', r.gender.capitalize(),          'Marital Status', r.marital_status.capitalize()],
+        ['Credit Score', str(r.credit_score),      'Annual Mileage', f'{r.annual_mileage:,} miles'],
+    ]
+    dt = Table(driver_rows, colWidths=[3.5*cm, 5*cm, 3.5*cm, 5*cm])
+    dt.setStyle(TableStyle([
+        ('FONTNAME',    (0,0), (0,-1), 'Helvetica-Bold'),
+        ('FONTNAME',    (2,0), (2,-1), 'Helvetica-Bold'),
+        ('TEXTCOLOR',   (0,0), (0,-1), colors.HexColor('#64748b')),
+        ('TEXTCOLOR',   (2,0), (2,-1), colors.HexColor('#64748b')),
+        ('FONTSIZE',    (0,0), (-1,-1), 9),
+        ('ROWBACKGROUNDS', (0,0), (-1,-1), [colors.HexColor('#f8fafc'), colors.white]),
+        ('TOPPADDING',  (0,0), (-1,-1), 5),
+        ('BOTTOMPADDING', (0,0), (-1,-1), 5),
+        ('LEFTPADDING', (0,0), (-1,-1), 8),
+        ('BOX',         (0,0), (-1,-1), 0.5, colors.HexColor('#e2e8f0')),
+        ('INNERGRID',   (0,0), (-1,-1), 0.3, colors.HexColor('#e2e8f0')),
+    ]))
+    story.append(dt)
+    story.append(Spacer(1, 0.3*cm))
+
+    story.append(Paragraph('Vehicle & Driving History', h2_style))
+    veh_rows = [
+        ['Vehicle Type', r.vehicle_type.capitalize(), 'Vehicle Age', f'{r.vehicle_age} years'],
+        ['Location',     r.primary_location.capitalize(), 'Night Driving', f'{r.night_driving_pct}%'],
+        ['Prev. Accidents', str(r.previous_accidents), 'Traffic Violations', str(r.traffic_violations)],
+    ]
+    vt = Table(veh_rows, colWidths=[3.5*cm, 5*cm, 3.5*cm, 5*cm])
+    vt.setStyle(dt.getStyle())
+    story.append(vt)
+    story.append(Spacer(1, 0.3*cm))
+
+    # ── Recommendations ──
+    recs = json.loads(r.recommendations_json or '[]')
+    if recs:
+        story.append(Paragraph('Personalised Recommendations', h2_style))
+        story.append(HRFlowable(width='100%', thickness=0.5, color=accent))
+        story.append(Spacer(1, 0.2*cm))
+        for rec in recs:
+            story.append(Paragraph(f'✔  {rec}', rec_style))
+            story.append(Spacer(1, 0.15*cm))
+
+    # ── Footer ──
+    story.append(Spacer(1, 0.5*cm))
+    story.append(HRFlowable(width='100%', thickness=0.5, color=colors.HexColor('#e2e8f0')))
+    story.append(Paragraph(
+        'RiskGuard AI  •  Road Accident Risk Assessment System  •  Generated automatically',
+        ParagraphStyle('footer', fontSize=7, textColor=colors.HexColor('#94a3b8'),
+                       alignment=TA_CENTER, spaceBefore=6)
+    ))
+
+    doc.build(story)
+    buf.seek(0)
+    return Response(buf.getvalue(), mimetype='application/pdf',
+                    headers={'Content-Disposition':
+                             f'attachment; filename=riskguard_report_{assessment_id}.pdf'})
+
+
+# ── Batch CSV Upload ──────────────────────────────────────────────────────────
+@app.route('/batch-upload')
+@login_required
+def batch_upload():
+    return render_template('batch_upload.html')
+
+
+@app.route('/api/batch-upload', methods=['POST'])
+@csrf.exempt
+@login_required
+def api_batch_upload():
+    if model is None:
+        return jsonify({'error': 'Model not loaded'}), 503
+    f = request.files.get('file')
+    if not f or not f.filename.endswith('.csv'):
+        return jsonify({'error': 'Please upload a CSV file'}), 400
+
+    try:
+        content = f.read().decode('utf-8')
+        reader = csv.DictReader(io.StringIO(content))
+        results = []
+        errors  = []
+        required = ['driver_age','driving_experience','annual_mileage','vehicle_age',
+                    'previous_accidents','traffic_violations','night_driving_pct',
+                    'credit_score','vehicle_type','primary_location','marital_status','gender']
+
+        for i, row in enumerate(reader, 1):
+            try:
+                input_data = {
+                    'driver_age':          int(float(row.get('driver_age', 0))),
+                    'driving_experience':  int(float(row.get('driving_experience', 0))),
+                    'annual_mileage':      int(float(row.get('annual_mileage', 10000))),
+                    'vehicle_age':         int(float(row.get('vehicle_age', 3))),
+                    'previous_accidents':  int(float(row.get('previous_accidents', 0))),
+                    'traffic_violations':  int(float(row.get('traffic_violations', 0))),
+                    'night_driving_pct':   int(float(row.get('night_driving_pct', 20))),
+                    'credit_score':        int(float(row.get('credit_score', 680))),
+                    'vehicle_type':        str(row.get('vehicle_type', 'sedan')).lower().strip(),
+                    'primary_location':    str(row.get('primary_location', 'suburban')).lower().strip(),
+                    'marital_status':      str(row.get('marital_status', 'single')).lower().strip(),
+                    'gender':              str(row.get('gender', 'male')).lower().strip(),
+                }
+                result = predict_risk(model, input_data)
+                record = Assessment(
+                    driver_age=input_data['driver_age'],
+                    driving_experience=input_data['driving_experience'],
+                    annual_mileage=input_data['annual_mileage'],
+                    vehicle_age=input_data['vehicle_age'],
+                    previous_accidents=input_data['previous_accidents'],
+                    traffic_violations=input_data['traffic_violations'],
+                    night_driving_pct=input_data['night_driving_pct'],
+                    credit_score=input_data['credit_score'],
+                    vehicle_type=input_data['vehicle_type'],
+                    primary_location=input_data['primary_location'],
+                    marital_status=input_data['marital_status'],
+                    gender=input_data['gender'],
+                    risk_score=result['risk_score'],
+                    risk_category=result['risk_category'],
+                    premium_multiplier=result['premium_multiplier'],
+                    claim_probability=result['claim_probability'],
+                    recommendations_json=json.dumps(result['recommendations']),
+                )
+                db.session.add(record)
+                results.append({'row': i, 'risk_score': result['risk_score'],
+                                 'risk_category': result['risk_category'],
+                                 'premium': result['premium_multiplier']})
+            except Exception as e:
+                errors.append({'row': i, 'error': str(e)})
+
+        db.session.commit()
+        return jsonify({'saved': len(results), 'errors': len(errors),
+                        'results': results[:100], 'error_list': errors[:20]})
+    except Exception as e:
+        return jsonify({'error': f'File processing failed: {str(e)}'}), 500
+
+
+# ── Risk Certificate ──────────────────────────────────────────────────────────
+@app.route('/certificate/<int:assessment_id>')
+@login_required
+def certificate(assessment_id):
+    record = Assessment.query.get_or_404(assessment_id)
+    return render_template('certificate.html', a=record)
+
+
+# ── API Documentation ─────────────────────────────────────────────────────────
+@app.route('/api-docs')
+@login_required
+def api_docs():
+    return render_template('api_docs.html')
+
+
+# ── Email Report ──────────────────────────────────────────────────────────────
+@app.route('/api/send-email/<int:assessment_id>', methods=['POST'])
+@csrf.exempt
+@login_required
+def send_email_report(assessment_id):
+    import smtplib
+    from email.mime.multipart import MIMEMultipart
+    from email.mime.text import MIMEText
+    record = Assessment.query.get_or_404(assessment_id)
+    data   = request.get_json(silent=True) or {}
+    to_email = data.get('email', '').strip()
+    if not to_email or '@' not in to_email:
+        return jsonify({'error': 'Invalid email address'}), 400
+
+    gmail_user = os.environ.get('EMAIL_USER', '')
+    gmail_pass = os.environ.get('EMAIL_PASS', '')
+    if not gmail_user or not gmail_pass:
+        return jsonify({'error': 'Email not configured. Add EMAIL_USER and EMAIL_PASS to .env'}), 503
+
+    cat_emoji = {'Low': '🟢', 'Medium': '🟡', 'High': '🔴', 'Very High': '🟣'}
+    emoji = cat_emoji.get(record.risk_category, '⚪')
+
+    html = f"""
+    <div style="font-family:Arial,sans-serif;max-width:560px;margin:0 auto;">
+      <div style="background:linear-gradient(135deg,#04080f,#0f1e35);padding:2rem;border-radius:16px 16px 0 0;text-align:center;">
+        <h1 style="color:#ff9f0a;margin:0;font-size:1.6rem;">🛡️ RiskGuard AI</h1>
+        <p style="color:rgba(255,255,255,.6);margin:.5rem 0 0;">Risk Assessment Report #{record.id}</p>
+      </div>
+      <div style="background:#f8fafc;padding:2rem;border-radius:0 0 16px 16px;border:1px solid #e2e8f0;">
+        <div style="text-align:center;margin-bottom:1.5rem;">
+          <div style="font-size:3rem;font-weight:900;color:{'#10b981' if record.risk_category=='Low' else '#f59e0b' if record.risk_category=='Medium' else '#ef4444' if record.risk_category=='High' else '#7c3aed'};">
+            {record.risk_score}
+          </div>
+          <div style="font-size:1rem;color:#64748b;">Risk Score / 100</div>
+          <div style="display:inline-block;padding:.4rem 1.2rem;border-radius:20px;background:{'#10b98120' if record.risk_category=='Low' else '#f59e0b20' if record.risk_category=='Medium' else '#ef444420'};color:{'#10b981' if record.risk_category=='Low' else '#d97706' if record.risk_category=='Medium' else '#dc2626'};font-weight:700;margin-top:.5rem;">
+            {emoji} {record.risk_category} Risk
+          </div>
+        </div>
+        <table style="width:100%;border-collapse:collapse;margin-bottom:1rem;">
+          <tr><td style="padding:.5rem;color:#64748b;font-size:.9rem;">Premium Multiplier</td><td style="padding:.5rem;font-weight:700;">{record.premium_multiplier}×</td></tr>
+          <tr style="background:#fff;"><td style="padding:.5rem;color:#64748b;font-size:.9rem;">Claim Probability</td><td style="padding:.5rem;font-weight:700;">{round(record.claim_probability*100)}%</td></tr>
+          <tr><td style="padding:.5rem;color:#64748b;font-size:.9rem;">Driver Age</td><td style="padding:.5rem;font-weight:700;">{record.driver_age} years</td></tr>
+          <tr style="background:#fff;"><td style="padding:.5rem;color:#64748b;font-size:.9rem;">Vehicle Type</td><td style="padding:.5rem;font-weight:700;text-transform:capitalize;">{record.vehicle_type}</td></tr>
+          <tr><td style="padding:.5rem;color:#64748b;font-size:.9rem;">Assessment Date</td><td style="padding:.5rem;font-weight:700;">{record.created_at.strftime('%d %B %Y %H:%M')}</td></tr>
+        </table>
+        <p style="color:#94a3b8;font-size:.78rem;text-align:center;">
+          Generated by RiskGuard AI Risk Intelligence Platform<br>
+          Pearson BTEC Level 6 Diploma in Digital Technologies
+        </p>
+      </div>
+    </div>"""
+
+    try:
+        msg = MIMEMultipart('alternative')
+        msg['Subject'] = f'RiskGuard AI — Assessment Report #{record.id} ({record.risk_category} Risk)'
+        msg['From']    = gmail_user
+        msg['To']      = to_email
+        msg.attach(MIMEText(html, 'html'))
+        with smtplib.SMTP_SSL('smtp.gmail.com', 465) as smtp:
+            smtp.login(gmail_user, gmail_pass)
+            smtp.send_message(msg)
+        logger.info('Email report sent to %s for assessment #%d', to_email, assessment_id)
+        return jsonify({'status': 'sent', 'to': to_email})
+    except Exception as e:
+        logger.error('Email error: %s', str(e))
+        return jsonify({'error': f'Email failed: {str(e)}'}), 500
+
+
+# ── Notification badge count ──────────────────────────────────────────────────
+@app.route('/api/notifications')
+@login_required
+def api_notifications():
+    high_count = Assessment.query.filter(
+        Assessment.risk_category.in_(['High', 'Very High']),
+        Assessment.status == 'Pending'
+    ).count()
+    return jsonify({'high_pending': high_count})
 
 
 if __name__ == '__main__':

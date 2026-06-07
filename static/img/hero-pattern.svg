@@ -1,31 +1,118 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="1440" height="600" viewBox="0 0 1440 600">
+<svg xmlns="http://www.w3.org/2000/svg" width="1440" height="620" viewBox="0 0 1440 620">
   <defs>
     <linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%">
-      <stop offset="0%" style="stop-color:#0d1b2a"/>
-      <stop offset="50%" style="stop-color:#1b2d45"/>
-      <stop offset="100%" style="stop-color:#0a2540"/>
+      <stop offset="0%" style="stop-color:#04080f"/>
+      <stop offset="45%" style="stop-color:#080f1e"/>
+      <stop offset="100%" style="stop-color:#050d1c"/>
     </linearGradient>
+    <radialGradient id="glow1" cx="75%" cy="20%" r="40%">
+      <stop offset="0%" style="stop-color:#ff9f0a;stop-opacity:.12"/>
+      <stop offset="100%" style="stop-color:#ff9f0a;stop-opacity:0"/>
+    </radialGradient>
+    <radialGradient id="glow2" cx="15%" cy="70%" r="35%">
+      <stop offset="0%" style="stop-color:#00d4ff;stop-opacity:.1"/>
+      <stop offset="100%" style="stop-color:#00d4ff;stop-opacity:0"/>
+    </radialGradient>
+    <radialGradient id="glow3" cx="90%" cy="80%" r="30%">
+      <stop offset="0%" style="stop-color:#7c3aed;stop-opacity:.1"/>
+      <stop offset="100%" style="stop-color:#7c3aed;stop-opacity:0"/>
+    </radialGradient>
+    <filter id="blur"><feGaussianBlur stdDeviation="2"/></filter>
   </defs>
-  <rect width="1440" height="600" fill="url(#bg)"/>
-  <!-- Grid lines -->
-  <g stroke="rgba(240,165,0,0.06)" stroke-width="1">
-    <line x1="0" y1="100" x2="1440" y2="100"/>
-    <line x1="0" y1="200" x2="1440" y2="200"/>
-    <line x1="0" y1="300" x2="1440" y2="300"/>
-    <line x1="0" y1="400" x2="1440" y2="400"/>
-    <line x1="0" y1="500" x2="1440" y2="500"/>
-    <line x1="200" y1="0" x2="200" y2="600"/>
-    <line x1="400" y1="0" x2="400" y2="600"/>
-    <line x1="600" y1="0" x2="600" y2="600"/>
-    <line x1="800" y1="0" x2="800" y2="600"/>
-    <line x1="1000" y1="0" x2="1000" y2="600"/>
-    <line x1="1200" y1="0" x2="1200" y2="600"/>
+
+  <!-- Base -->
+  <rect width="1440" height="620" fill="url(#bg)"/>
+  <rect width="1440" height="620" fill="url(#glow1)"/>
+  <rect width="1440" height="620" fill="url(#glow2)"/>
+  <rect width="1440" height="620" fill="url(#glow3)"/>
+
+  <!-- Neural network nodes - right side -->
+  <g opacity=".7">
+    <!-- Layer 1 nodes -->
+    <circle cx="920" cy="120" r="5" fill="#ff9f0a" opacity=".9"/>
+    <circle cx="920" cy="220" r="5" fill="#ff9f0a" opacity=".9"/>
+    <circle cx="920" cy="320" r="5" fill="#ff9f0a" opacity=".9"/>
+    <circle cx="920" cy="420" r="5" fill="#ff9f0a" opacity=".9"/>
+
+    <!-- Layer 2 nodes -->
+    <circle cx="1060" cy="155" r="6" fill="#00d4ff" opacity=".85"/>
+    <circle cx="1060" cy="270" r="6" fill="#00d4ff" opacity=".85"/>
+    <circle cx="1060" cy="385" r="6" fill="#00d4ff" opacity=".85"/>
+
+    <!-- Layer 3 nodes -->
+    <circle cx="1200" cy="200" r="5" fill="#7c3aed" opacity=".9"/>
+    <circle cx="1200" cy="310" r="5" fill="#7c3aed" opacity=".9"/>
+
+    <!-- Output node -->
+    <circle cx="1340" cy="255" r="8" fill="#ff9f0a" opacity="1"/>
+
+    <!-- L1→L2 connections -->
+    <g stroke="rgba(255,159,10,.18)" stroke-width="1" fill="none">
+      <line x1="925" y1="120" x2="1054" y2="155"/>
+      <line x1="925" y1="120" x2="1054" y2="270"/>
+      <line x1="925" y1="220" x2="1054" y2="155"/>
+      <line x1="925" y1="220" x2="1054" y2="270"/>
+      <line x1="925" y1="220" x2="1054" y2="385"/>
+      <line x1="925" y1="320" x2="1054" y2="270"/>
+      <line x1="925" y1="320" x2="1054" y2="385"/>
+      <line x1="925" y1="420" x2="1054" y2="270"/>
+      <line x1="925" y1="420" x2="1054" y2="385"/>
+    </g>
+    <!-- L2→L3 connections -->
+    <g stroke="rgba(0,212,255,.18)" stroke-width="1" fill="none">
+      <line x1="1066" y1="155" x2="1194" y2="200"/>
+      <line x1="1066" y1="155" x2="1194" y2="310"/>
+      <line x1="1066" y1="270" x2="1194" y2="200"/>
+      <line x1="1066" y1="270" x2="1194" y2="310"/>
+      <line x1="1066" y1="385" x2="1194" y2="200"/>
+      <line x1="1066" y1="385" x2="1194" y2="310"/>
+    </g>
+    <!-- L3→output -->
+    <g stroke="rgba(124,58,237,.3)" stroke-width="1.5" fill="none">
+      <line x1="1205" y1="200" x2="1332" y2="255"/>
+      <line x1="1205" y1="310" x2="1332" y2="255"/>
+    </g>
   </g>
-  <!-- Decorative circles -->
-  <circle cx="1200" cy="100" r="180" fill="rgba(240,165,0,0.04)"/>
-  <circle cx="1200" cy="100" r="120" fill="rgba(240,165,0,0.05)"/>
-  <circle cx="100" cy="500" r="150" fill="rgba(74,144,217,0.04)"/>
-  <!-- Bottom wave -->
-  <path d="M0 520 Q360 480 720 510 Q1080 540 1440 500 L1440 600 L0 600 Z"
-        fill="rgba(0,0,0,0.2)"/>
+
+  <!-- Floating data points - scattered -->
+  <g fill="#ff9f0a">
+    <circle cx="200" cy="80"  r="2" opacity=".5"/>
+    <circle cx="350" cy="150" r="1.5" opacity=".4"/>
+    <circle cx="500" cy="60"  r="2" opacity=".6"/>
+    <circle cx="650" cy="180" r="1.5" opacity=".4"/>
+    <circle cx="750" cy="90"  r="2" opacity=".5"/>
+    <circle cx="820" cy="200" r="1.5" opacity=".3"/>
+  </g>
+  <g fill="#00d4ff">
+    <circle cx="180" cy="400" r="2" opacity=".4"/>
+    <circle cx="320" cy="480" r="1.5" opacity=".5"/>
+    <circle cx="480" cy="520" r="2" opacity=".35"/>
+    <circle cx="700" cy="450" r="1.5" opacity=".4"/>
+    <circle cx="850" cy="510" r="2" opacity=".3"/>
+  </g>
+
+  <!-- Hexagon grid - subtle -->
+  <g stroke="rgba(255,159,10,.04)" stroke-width="1" fill="none">
+    <polygon points="100,50 140,75 140,125 100,150 60,125 60,75"/>
+    <polygon points="180,50 220,75 220,125 180,150 140,125 140,75"/>
+    <polygon points="260,50 300,75 300,125 260,150 220,125 220,75"/>
+    <polygon points="340,50 380,75 380,125 340,150 300,125 300,75"/>
+    <polygon points="100,150 140,175 140,225 100,250 60,225 60,175"/>
+    <polygon points="180,150 220,175 220,225 180,250 140,225 140,175"/>
+    <polygon points="260,150 300,175 300,225 260,250 220,225 220,175"/>
+  </g>
+
+  <!-- Circuit lines -->
+  <g stroke="rgba(0,212,255,.06)" stroke-width="1.5" fill="none">
+    <path d="M0 480 L200 480 L200 520 L400 520"/>
+    <path d="M0 380 L150 380 L150 340 L350 340"/>
+    <path d="M600 600 L600 540 L700 540 L700 490 L850 490"/>
+  </g>
+
+  <!-- Big glow orbs -->
+  <circle cx="1150" cy="80" r="200" fill="rgba(255,159,10,.04)" filter="url(#blur)"/>
+  <circle cx="200" cy="550" r="180" fill="rgba(0,212,255,.04)" filter="url(#blur)"/>
+
+  <!-- Bottom gradient overlay -->
+  <rect y="500" width="1440" height="120" fill="url(#bg)" opacity=".6"/>
 </svg>

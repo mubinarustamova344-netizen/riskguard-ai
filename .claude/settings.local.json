@@ -2,7 +2,28 @@
   "permissions": {
     "allow": [
       "Bash(curl -s -o /dev/null -w \"%{http_code}\" http://127.0.0.1:5000/login)",
-      "Bash(python app.py)"
+      "Bash(python app.py)",
+      "Bash(curl -s -o /dev/null -w \"%{http_code}\" http://127.0.0.1:5000/)",
+      "Bash(curl -s -o /dev/null -w \"\\\\n%{http_code}\" http://127.0.0.1:5000/login)",
+      "Bash(curl -sv http://127.0.0.1:5000/login)",
+      "PowerShell(Get-Process python -ErrorAction SilentlyContinue)",
+      "PowerShell(Stop-Process -Force)",
+      "Read(//tmp/shots_final/**)",
+      "Read(//c/tmp/shots_final/**)",
+      "Bash(python -c ' *)",
+      "Read(//tmp/shots_login/**)",
+      "Read(//c/tmp/shots_login/**)",
+      "Read(//tmp/**)",
+      "Read(//tmp/shots_login2/**)",
+      "Read(//c/tmp/shots_login2/**)",
+      "Read(//c/tmp/**)",
+      "Bash(curl -s -o /dev/null -w \"%{http_code}\" http://127.0.0.1:5000/quote)",
+      "Bash(curl -s -c /tmp/rg_cookie.txt http://127.0.0.1:5001/login)",
+      "Bash(curl *)",
+      "Bash(python -m json.tool --no-ensure-ascii)",
+      "Bash(git -C \"C:\\\\Users\\\\rusta\\\\Desktop\\\\chatbot\\\\project\" status)",
+      "Bash(git -C \"C:\\\\Users\\\\rusta\\\\Desktop\\\\chatbot\\\\project\" diff templates/quote.html)",
+      "PowerShell(Copy-Item \"c:\\\\Users\\\\rusta\\\\Desktop\\\\chatbot\\\\project\\\\PDP_BTEC_RiskGuard_AI_FINAL.docx\" \"c:\\\\Users\\\\rusta\\\\Desktop\\\\PDP_BTEC_RiskGuard_AI_FINAL.docx\" -Force)"
     ]
   }
 }

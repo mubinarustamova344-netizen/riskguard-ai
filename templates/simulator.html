@@ -1,0 +1,335 @@
+{% extends "base.html" %}
+{% block title %}What-If Simulator – RiskGuard AI{% endblock %}
+
+{% block head %}
+<style>
+.sim-card { background:var(--card-bg);border:1px solid var(--border);border-radius:var(--radius-lg);padding:1.5rem; }
+.sim-score-ring { width:160px;height:160px;border-radius:50%;display:flex;flex-direction:column;align-items:center;justify-content:center;border:8px solid;transition:all .4s; }
+.sim-score-val { font-size:2.5rem;font-weight:900;line-height:1; }
+.sim-score-lbl { font-size:.75rem;opacity:.7;margin-top:2px; }
+.slider-row { margin-bottom:1rem; }
+.slider-row label { font-size:.85rem;font-weight:600;color:var(--text);display:flex;justify-content:space-between; }
+.slider-val { color:var(--accent);font-weight:700; }
+.form-range::-webkit-slider-thumb { background:var(--accent); }
+.factor-bar { height:8px;border-radius:4px;transition:width .4s; }
+.cat-badge { font-size:.9rem;padding:.4rem 1rem;border-radius:20px;font-weight:700; }
+.change-arrow { font-size:1.5rem;line-height:1; }
+.compare-box { border:2px solid var(--border);border-radius:var(--radius);padding:1rem;text-align:center; }
+.compare-box.active { border-color:var(--accent); }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container py-5">
+
+  <div class="rg-page-header mb-4">
+    <h2><i class="bi bi-sliders me-2 text-warning"></i>
+      {% if lang == 'uz' %}What-If Risk Simulyatori{% else %}What-If Risk Simulator{% endif %}
+    </h2>
+    <p class="text-muted">
+      {% if lang == 'uz' %}
+        Slayderlarni o'zgartiring va risk balingiz real vaqtda qanday o'zgarishini koring
+      {% else %}
+        Adjust any parameter and see your risk score change in real time
+      {% endif %}
+    </p>
+  </div>
+
+  <div class="row g-4">
+
+    <!-- ── Left: Controls ── -->
+    <div class="col-lg-5">
+      <div class="sim-card">
+        <h6 class="fw-bold mb-3"><i class="bi bi-person me-2 text-primary"></i>
+          {% if lang == 'uz' %}Haydovchi profili{% else %}Driver Profile{% endif %}
+        </h6>
+
+        <div class="slider-row">
+          <label>{% if lang=='uz'%}Yosh{% else %}Age{% endif %} <span class="slider-val" id="lbl_age">35</span></label>
+          <input type="range" class="form-range" id="sl_age" min="18" max="80" value="35" oninput="update('lbl_age',this.value);simulate()">
+        </div>
+        <div class="slider-row">
+          <label>{% if lang=='uz'%}Tajriba (yil){% else %}Experience (yrs){% endif %} <span class="slider-val" id="lbl_exp">10</span></label>
+          <input type="range" class="form-range" id="sl_exp" min="0" max="50" value="10" oninput="update('lbl_exp',this.value);simulate()">
+        </div>
+        <div class="slider-row">
+          <label>{% if lang=='uz'%}Kredit bali{% else %}Credit Score{% endif %} <span class="slider-val" id="lbl_credit">680</span></label>
+          <input type="range" class="form-range" id="sl_credit" min="300" max="850" value="680" oninput="update('lbl_credit',this.value);simulate()">
+        </div>
+
+        <h6 class="fw-bold mb-3 mt-4"><i class="bi bi-car-front me-2 text-success"></i>
+          {% if lang=='uz'%}Avtomobil va joylashuv{% else %}Vehicle & Location{% endif %}
+        </h6>
+
+        <div class="mb-3">
+          <label class="form-label small fw-semibold">{% if lang=='uz'%}Avtomobil turi{% else %}Vehicle Type{% endif %}</label>
+          <select class="form-select form-select-sm" id="sl_vtype" onchange="simulate()">
+            <option value="sedan">Sedan</option>
+            <option value="suv">SUV</option>
+            <option value="van">Van</option>
+            <option value="truck">Truck</option>
+            <option value="sports">Sports</option>
+            <option value="motorcycle">Motorcycle</option>
+          </select>
+        </div>
+        <div class="mb-3">
+          <label class="form-label small fw-semibold">{% if lang=='uz'%}Joylashuv{% else %}Location{% endif %}</label>
+          <select class="form-select form-select-sm" id="sl_loc" onchange="simulate()">
+            <option value="suburban">Suburban</option>
+            <option value="rural">Rural</option>
+            <option value="highway">Highway</option>
+            <option value="urban">Urban</option>
+          </select>
+        </div>
+        <div class="slider-row">
+          <label>{% if lang=='uz'%}Avtomobil yoshi (yil){% else %}Vehicle Age (yrs){% endif %} <span class="slider-val" id="lbl_vage">3</span></label>
+          <input type="range" class="form-range" id="sl_vage" min="0" max="20" value="3" oninput="update('lbl_vage',this.value);simulate()">
+        </div>
+        <div class="slider-row">
+          <label>{% if lang=='uz'%}Yillik masofa (mil){% else %}Annual Mileage{% endif %} <span class="slider-val" id="lbl_mile">15000</span></label>
+          <input type="range" class="form-range" id="sl_mile" min="1000" max="60000" step="500" value="15000" oninput="update('lbl_mile',parseInt(this.value).toLocaleString());simulate()">
+        </div>
+
+        <h6 class="fw-bold mb-3 mt-4"><i class="bi bi-activity me-2 text-danger"></i>
+          {% if lang=='uz'%}Haydovchilik tarixi{% else %}Driving History{% endif %}
+        </h6>
+
+        <div class="slider-row">
+          <label>{% if lang=='uz'%}Avvalgi hodisalar (3 yil){% else %}Previous Accidents (3yr){% endif %} <span class="slider-val" id="lbl_acc">0</span></label>
+          <input type="range" class="form-range" id="sl_acc" min="0" max="5" value="0" oninput="update('lbl_acc',this.value);simulate()">
+        </div>
+        <div class="slider-row">
+          <label>{% if lang=='uz'%}Yo'l qoidabuzarliklar (3 yil){% else %}Traffic Violations (3yr){% endif %} <span class="slider-val" id="lbl_viol">0</span></label>
+          <input type="range" class="form-range" id="sl_viol" min="0" max="10" value="0" oninput="update('lbl_viol',this.value);simulate()">
+        </div>
+        <div class="slider-row">
+          <label>{% if lang=='uz'%}Tungi haydovchilik %{% else %}Night Driving %{% endif %} <span class="slider-val" id="lbl_night">20</span>%</label>
+          <input type="range" class="form-range" id="sl_night" min="0" max="100" value="20" oninput="update('lbl_night',this.value);simulate()">
+        </div>
+
+        <div class="row g-2 mt-2">
+          <div class="col-6">
+            <label class="form-label small fw-semibold">{% if lang=='uz'%}Jins{% else %}Gender{% endif %}</label>
+            <select class="form-select form-select-sm" id="sl_gender" onchange="simulate()">
+              <option value="male">Male</option>
+              <option value="female">Female</option>
+            </select>
+          </div>
+          <div class="col-6">
+            <label class="form-label small fw-semibold">{% if lang=='uz'%}Oilaviy holat{% else %}Marital Status{% endif %}</label>
+            <select class="form-select form-select-sm" id="sl_marital" onchange="simulate()">
+              <option value="single">Single</option>
+              <option value="married">Married</option>
+              <option value="divorced">Divorced</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="d-flex gap-2 mt-4">
+          <button class="btn btn-warning fw-bold flex-grow-1" onclick="saveScenario()">
+            <i class="bi bi-bookmark me-1"></i>{% if lang=='uz'%}Senariyni saqlash{% else %}Save Scenario{% endif %}
+          </button>
+          <button class="btn btn-outline-secondary" onclick="resetAll()">
+            <i class="bi bi-arrow-counterclockwise"></i>
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── Right: Results ── -->
+    <div class="col-lg-7">
+
+      <!-- Score ring -->
+      <div class="sim-card mb-4 text-center">
+        <div class="d-flex justify-content-center align-items-center gap-4 flex-wrap">
+          <div>
+            <div class="small text-muted mb-2">{% if lang=='uz'%}Joriy{% else %}Current{% endif %}</div>
+            <div class="sim-score-ring" id="scoreRing" style="border-color:#22c55e;">
+              <span class="sim-score-val" id="scoreVal">—</span>
+              <span class="sim-score-lbl">{% if lang=='uz'%}Risk bali{% else %}Risk Score{% endif %}</span>
+            </div>
+            <div class="mt-2"><span class="cat-badge" id="catBadge" style="background:#22c55e20;color:#22c55e;">—</span></div>
+          </div>
+
+          <div class="change-arrow text-muted" id="changeArrow">⇄</div>
+
+          <div id="savedCol" style="display:none;">
+            <div class="small text-muted mb-2">{% if lang=='uz'%}Saqlangan{% else %}Saved{% endif %}</div>
+            <div class="sim-score-ring" id="savedRing" style="border-color:#94a3b8;">
+              <span class="sim-score-val" id="savedVal">—</span>
+              <span class="sim-score-lbl">{% if lang=='uz'%}Senariy{% else %}Scenario{% endif %}</span>
+            </div>
+            <div class="mt-2"><span class="cat-badge" id="savedCat" style="background:#94a3b820;color:#94a3b8;">—</span></div>
+          </div>
+        </div>
+
+        <div class="row g-3 mt-3 text-center">
+          <div class="col-4">
+            <div class="small text-muted">{% if lang=='uz'%}Premium{% else %}Premium{% endif %}</div>
+            <div class="fw-bold fs-5" id="premVal">—×</div>
+          </div>
+          <div class="col-4">
+            <div class="small text-muted">{% if lang=='uz'%}Da'vo ehtimoli{% else %}Claim Prob.{% endif %}</div>
+            <div class="fw-bold fs-5" id="claimVal">—%</div>
+          </div>
+          <div class="col-4">
+            <div class="small text-muted">{% if lang=='uz'%}Model ishonchi{% else %}Confidence{% endif %}</div>
+            <div class="fw-bold fs-5" id="confVal">—%</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Factor bars -->
+      <div class="sim-card mb-4">
+        <h6 class="fw-bold mb-3"><i class="bi bi-bar-chart-horizontal me-2 text-warning"></i>
+          {% if lang=='uz'%}Omillar ta'siri{% else %}Factor Impact{% endif %}
+        </h6>
+        <div id="factorBars"></div>
+      </div>
+
+      <!-- Class probabilities -->
+      <div class="sim-card">
+        <h6 class="fw-bold mb-3"><i class="bi bi-pie-chart me-2 text-info"></i>
+          {% if lang=='uz'%}Risk kategoriyasi ehtimolliklari{% else %}Risk Category Probabilities{% endif %}
+        </h6>
+        <div id="classProbs"></div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+const CAT_COLORS = {
+  'Low': '#22c55e', 'Medium': '#f59e0b', 'High': '#ef4444', 'Very High': '#7c3aed'
+};
+let _saved = null;
+let _debounce = null;
+
+function update(id, val) {
+  document.getElementById(id).textContent = val;
+}
+
+function getPayload() {
+  return {
+    driver_age: +document.getElementById('sl_age').value,
+    driving_experience: +document.getElementById('sl_exp').value,
+    credit_score: +document.getElementById('sl_credit').value,
+    vehicle_type: document.getElementById('sl_vtype').value,
+    primary_location: document.getElementById('sl_loc').value,
+    vehicle_age: +document.getElementById('sl_vage').value,
+    annual_mileage: +document.getElementById('sl_mile').value,
+    previous_accidents: +document.getElementById('sl_acc').value,
+    traffic_violations: +document.getElementById('sl_viol').value,
+    night_driving_pct: +document.getElementById('sl_night').value,
+    gender: document.getElementById('sl_gender').value,
+    marital_status: document.getElementById('sl_marital').value,
+  };
+}
+
+function simulate() {
+  clearTimeout(_debounce);
+  _debounce = setTimeout(_doSimulate, 200);
+}
+
+async function _doSimulate() {
+  const payload = getPayload();
+  try {
+    const res = await fetch('/api/assess', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify(payload)
+    });
+    const data = await res.json();
+    if (data.error) return;
+    renderResult(data);
+  } catch(e) {}
+}
+
+function renderResult(d) {
+  const score = d.risk_score;
+  const cat = d.risk_category;
+  const color = CAT_COLORS[cat] || '#94a3b8';
+
+  // Score ring
+  document.getElementById('scoreVal').textContent = score;
+  document.getElementById('scoreRing').style.borderColor = color;
+  const badge = document.getElementById('catBadge');
+  badge.textContent = cat + ' Risk';
+  badge.style.background = color + '20';
+  badge.style.color = color;
+
+  // KPIs
+  document.getElementById('premVal').textContent = d.premium_multiplier + '×';
+  document.getElementById('claimVal').textContent = Math.round(d.claim_probability * 100) + '%';
+  document.getElementById('confVal').textContent = (d.confidence || 85) + '%';
+
+  // Factor bars
+  const factors = d.factor_contributions || [];
+  const maxV = Math.max(...factors.map(f => f.value), 1);
+  document.getElementById('factorBars').innerHTML = factors.slice(0, 8).map(f => `
+    <div class="d-flex align-items-center gap-2 mb-2">
+      <div class="small text-muted" style="width:180px;font-size:.78rem;text-align:right;">${f.factor}</div>
+      <div class="flex-grow-1 bg-light rounded" style="height:8px;overflow:hidden;">
+        <div class="factor-bar" style="width:${Math.round(f.value/maxV*100)}%;background:${f.type==='risk'?'#ef4444':'#22c55e'};"></div>
+      </div>
+      <div class="small fw-bold" style="width:36px;color:${f.type==='risk'?'#ef4444':'#22c55e'};">${f.value}</div>
+    </div>`).join('');
+
+  // Class probs
+  const probs = d.class_probabilities || {};
+  document.getElementById('classProbs').innerHTML = ['Low','Medium','High','Very High'].map(c => {
+    const pct = Math.round((probs[c] || 0) * 100);
+    return `<div class="d-flex align-items-center gap-2 mb-2">
+      <div style="width:90px;font-size:.8rem;font-weight:600;color:${CAT_COLORS[c]};">${c}</div>
+      <div class="flex-grow-1 bg-light rounded" style="height:10px;overflow:hidden;">
+        <div style="width:${pct}%;height:100%;background:${CAT_COLORS[c]};border-radius:4px;transition:width .4s;"></div>
+      </div>
+      <div style="width:40px;font-size:.8rem;font-weight:700;">${pct}%</div>
+    </div>`;
+  }).join('');
+
+  // Compare with saved
+  if (_saved) {
+    const diff = Math.round((score - _saved.score) * 10) / 10;
+    const arrow = document.getElementById('changeArrow');
+    arrow.textContent = diff > 0 ? '↑ +' + diff : diff < 0 ? '↓ ' + diff : '→ 0';
+    arrow.style.color = diff > 0 ? '#ef4444' : diff < 0 ? '#22c55e' : '#94a3b8';
+  }
+}
+
+function saveScenario() {
+  const scoreEl = document.getElementById('scoreVal');
+  if (scoreEl.textContent === '—') return;
+  _saved = {
+    score: parseFloat(scoreEl.textContent),
+    cat: document.getElementById('catBadge').textContent
+  };
+  document.getElementById('savedCol').style.display = '';
+  document.getElementById('savedVal').textContent = _saved.score;
+  const sc = document.getElementById('savedCat');
+  const color = CAT_COLORS[_saved.cat.replace(' Risk','')] || '#94a3b8';
+  sc.textContent = _saved.cat;
+  sc.style.background = color + '20';
+  sc.style.color = color;
+  document.getElementById('savedRing').style.borderColor = color;
+  showToast('Senariy saqlandi!', 'success', 2000);
+}
+
+function resetAll() {
+  document.getElementById('sl_age').value = 35; update('lbl_age', 35);
+  document.getElementById('sl_exp').value = 10; update('lbl_exp', 10);
+  document.getElementById('sl_credit').value = 680; update('lbl_credit', 680);
+  document.getElementById('sl_vage').value = 3; update('lbl_vage', 3);
+  document.getElementById('sl_mile').value = 15000; update('lbl_mile', '15,000');
+  document.getElementById('sl_acc').value = 0; update('lbl_acc', 0);
+  document.getElementById('sl_viol').value = 0; update('lbl_viol', 0);
+  document.getElementById('sl_night').value = 20; update('lbl_night', 20);
+  simulate();
+}
+
+// Auto-run on load
+window.addEventListener('DOMContentLoaded', () => simulate());
+</script>
+{% endblock %}
