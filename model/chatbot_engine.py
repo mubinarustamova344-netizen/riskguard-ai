@@ -1,6 +1,17 @@
-import re
-import os
+# -*- coding: utf-8 -*-
+"""
+RiskBot — Intelligent AI Chatbot Engine
+Supports: Google Gemini (free) → Anthropic Claude → Comprehensive FAQ fallback
+"""
+import re, os
 from datetime import datetime
+
+# ── AI providers ───────────────────────────────────────────────────────────────
+try:
+    from google import genai as _genai
+    _GEMINI_AVAILABLE = True
+except ImportError:
+    _GEMINI_AVAILABLE = False
 
 try:
     import anthropic as _anthropic
@@ -8,417 +19,843 @@ try:
 except ImportError:
     _ANTHROPIC_AVAILABLE = False
 
-INTENTS = {
-    'greeting': [
-        r'\b(hello|hi|hey|good (morning|afternoon|evening)|howdy|greetings)\b'
-    ],
-    'farewell': [
-        r'\b(bye|goodbye|see you|take care|exit|quit)\b'
-    ],
-    'help': [
-        r'\b(help|what can you do|how does this work|guide me|assist)\b'
-    ],
-    'start_assessment': [
-        r'\b(assess|assessment|check my risk|calculate|evaluate|quote|get a quote|start)\b'
-    ],
-    'ask_premium': [
-        r'\b(premium|cost|price|how much|payment|monthly|annual fee|charge)\b'
-    ],
-    'ask_coverage': [
-        r'\b(coverage|cover|policy|what.s covered|include|protect)\b'
-    ],
-    'ask_risk_factors': [
-        r'\b(risk factor|risk factors|what affect|what increase|what lower|what reduce|influence|impact|factor)\b'
-    ],
-    'ask_accidents': [
-        r'\b(accident|crash|claim|incident|collision)\b'
-    ],
-    'ask_safe_driving': [
-        r'\b(safe driving|drive safely|improve|reduce risk|lower risk|tips|advice)\b'
-    ],
-    'ask_model': [
-        r'\b(model|algorithm|machine learning|how it works|prediction|ai|how do you)\b'
-    ],
-    'ask_telematics': [
-        r'\b(telematics|black box|tracking device|ubi|usage.based)\b'
-    ],
-    'ask_young_driver': [
-        r'\b(young driver|new driver|first time|learner|provisional|student driver)\b'
-    ],
-    'ask_no_claims': [
-        r'\b(no claims|ncb|no claim bonus|discount|reward|loyalty)\b'
-    ],
-    'ask_excess': [
-        r'\b(excess|deductible|out.of.pocket|self.insure|pay.when.claim)\b'
-    ],
-    'ask_credit_score': [
-        r'\b(credit score|credit rating|credit check|fico|financial history)\b'
-    ],
-    'ask_comparison': [
-        r'\b(compare|comparison|versus|vs|difference between|which is better|two driver)\b'
-    ],
-    'ask_vehicle_risk': [
-        r'\b(sports car|motorcycle|suv|truck|sedan|which vehicle|risky car|safe car)\b'
-    ],
-    'ask_location_risk': [
-        r'\b(city driving|urban risk|rural driving|highway risk|where to drive|location affect)\b'
-    ],
-    'ask_fraud': [
-        r'\b(fraud|fake claim|insurance fraud|false claim|ghost broker)\b'
-    ],
-    'affirmative': [
-        r'\b(yes|yeah|yep|sure|ok|okay|go ahead|proceed|correct|right)\b'
-    ],
-    'negative': [
-        r'\b(no|nope|not now|cancel|skip|later)\b'
-    ],
-}
+# ── System prompt ──────────────────────────────────────────────────────────────
+SYSTEM_PROMPT = """You are RiskBot — the intelligent AI assistant embedded in RiskGuard AI, a professional road accident risk assessment platform for insurance companies. Built as a Pearson BTEC Level 6 Diploma project at PDP University, Tashkent.
 
-RESPONSES = {
-    'greeting': [
-        "Hello! I'm RiskBot, your AI insurance risk assistant. I can help you assess road accident risk, explain your insurance options, and provide personalised recommendations. How can I help you today?",
-        "Hi there! Welcome to the Risk Assessment System for Insurance. I can evaluate your driving risk profile, explain premium factors, or answer questions about your coverage. What would you like to know?",
-    ],
-    'farewell': [
-        "Goodbye! Drive safely and feel free to return anytime for a risk assessment. Stay safe on the roads!",
-        "Take care! Remember, maintaining a clean driving record is your best way to keep premiums low. Bye!",
-    ],
-    'help': [
-        "Here's what I can help you with:\n\n"
-        "🔹 **Risk Assessment** – Get your personalised road risk score\n"
-        "🔹 **Premium Factors** – Learn what affects your insurance cost\n"
-        "🔹 **Safe Driving Tips** – Advice to reduce your risk profile\n"
-        "🔹 **Coverage Information** – Understand what policies cover\n"
-        "🔹 **Young Driver Advice** – Special guidance for new drivers\n"
-        "🔹 **No-Claims Bonus** – How to protect your discount\n\n"
-        "You can also use the **Risk Assessment Form** in the navigation menu for a full evaluation. What would you like to explore?",
-    ],
-    'start_assessment': [
-        "Great! To give you an accurate risk assessment, please use the **Risk Assessment** page from the navigation menu. It will collect your driver profile, vehicle details, and driving habits, then generate your personalised risk score with recommendations.\n\nAlternatively, I can answer any questions about the process here. What would you like to know first?",
-    ],
-    'ask_premium': [
-        "Your insurance premium is calculated based on your **risk score**, which considers:\n\n"
-        "• **Driver factors**: Age, experience, accident history, violations\n"
-        "• **Vehicle factors**: Type, age, safety features\n"
-        "• **Behavioural factors**: Annual mileage, night driving percentage\n"
-        "• **Environmental factors**: Primary driving location\n\n"
-        "Our model applies a premium multiplier:\n"
-        "- Low Risk: **1.0× base rate** (no surcharge)\n"
-        "- Medium Risk: **1.35×** base rate\n"
-        "- High Risk: **1.75×** base rate\n"
-        "- Very High Risk: **2.30×** base rate\n\n"
-        "Would you like to run a full assessment to see your personal multiplier?",
-    ],
-    'ask_coverage': [
-        "Our insurance policies offer three main coverage tiers:\n\n"
-        "🔹 **Third Party Only** – Minimum legal requirement. Covers damage to others.\n"
-        "🔹 **Third Party, Fire & Theft** – Adds protection against vehicle theft and fire damage.\n"
-        "🔹 **Comprehensive** – Full coverage including own damage, medical expenses, and more.\n\n"
-        "Coverage limits and exclusions vary by policy. For personalised recommendations, run a risk assessment first — it helps us match you with the most suitable policy tier. Shall I guide you through the assessment?",
-    ],
-    'ask_risk_factors': [
-        "The key factors that **increase** your risk score include:\n\n"
-        "⬆️ Young age (under 25) or older age (over 65)\n"
-        "⬆️ Limited driving experience (under 2 years)\n"
-        "⬆️ Previous accident history\n"
-        "⬆️ Traffic violations (speeding, running red lights)\n"
-        "⬆️ High annual mileage (over 30,000 miles)\n"
-        "⬆️ High percentage of night-time driving\n"
-        "⬆️ High-risk vehicles (sports cars, motorcycles)\n"
-        "⬆️ Urban driving environment\n"
-        "⬆️ Low credit score\n\n"
-        "Factors that **reduce** your risk include clean records, telematics devices, and advanced driver training. Want specific tips for your profile?",
-    ],
-    'ask_accidents': [
-        "Accident history is one of the **strongest predictors** of future claims in our model.\n\n"
-        "Here's how previous accidents affect your score:\n"
-        "• 0 accidents: No surcharge (baseline)\n"
-        "• 1 accident: +14 points on risk score\n"
-        "• 2 accidents: +28 points\n"
-        "• 3+ accidents: Significant impact — may trigger manual underwriting review\n\n"
-        "**To mitigate this impact:**\n"
-        "✅ Install a telematics (black box) device to demonstrate safe driving\n"
-        "✅ Complete an approved defensive driving course\n"
-        "✅ Maintain a clean record for 3+ years for accident forgiveness\n\n"
-        "Claims within the past 3 years have the most significant impact. Would you like more information?",
-    ],
-    'ask_safe_driving': [
-        "Here are evidence-based tips to **improve your risk profile and reduce premiums**:\n\n"
-        "🚗 **Driving Behaviour:**\n"
-        "• Maintain consistent speeds and avoid harsh braking\n"
-        "• Follow speed limits strictly — violations add significant risk points\n"
-        "• Reduce night-time driving where possible\n\n"
-        "📱 **Technology:**\n"
-        "• Install a telematics device for usage-based insurance (UBI) — can save 10–25%\n"
-        "• Use advanced driver assistance systems (ADAS)\n\n"
-        "🎓 **Training:**\n"
-        "• Complete an IAM (Institute of Advanced Motorists) course\n"
-        "• Defensive driving courses recognised by most insurers\n\n"
-        "🔧 **Vehicle Maintenance:**\n"
-        "• Keep tyres at correct pressure and replace when worn\n"
-        "• Ensure all lights are functional\n\n"
-        "Over time, a clean record (3+ years) is the single most impactful change you can make. Any specific area you'd like to explore?",
-    ],
-    'ask_model': [
-        "Our risk assessment engine uses a **Random Forest Classifier** trained on 12,000 synthetic records that reflect real-world insurance data patterns.\n\n"
-        "**How it works:**\n"
-        "1. You submit your driver and vehicle profile\n"
-        "2. Features are preprocessed (scaling + one-hot encoding)\n"
-        "3. The model predicts your risk category across 4 classes\n"
-        "4. A deterministic risk score (0–100) is computed from domain rules\n"
-        "5. Recommendations are generated based on your specific risk factors\n\n"
-        "**Model Performance:**\n"
-        "• Typical accuracy: ~87–91% on test data\n"
-        "• Cross-validated with 5-fold CV\n"
-        "• Compared against Decision Tree, Logistic Regression, and Gradient Boosting\n\n"
-        "The key features by importance are: previous accidents, driving experience, driver age, traffic violations, and annual mileage. Want to see the full dashboard with model metrics?",
-    ],
-    'ask_telematics': [
-        "**Telematics insurance** (also called Usage-Based Insurance or UBI) uses a black box device or smartphone app to monitor your actual driving behaviour.\n\n"
-        "**What is monitored:**\n"
-        "• Speed and acceleration patterns\n"
-        "• Braking intensity\n"
-        "• Cornering behaviour\n"
-        "• Time of day driving\n"
-        "• Distance driven\n\n"
-        "**Benefits:**\n"
-        "✅ Can reduce premiums by **10–25%** for safe drivers\n"
-        "✅ Particularly beneficial for young drivers with no history\n"
-        "✅ Provides real-time feedback to improve driving habits\n"
-        "✅ Proves safe behaviour after a previous accident\n\n"
-        "**Drawbacks:**\n"
-        "❌ Poor scores can increase your premium\n"
-        "❌ Privacy concerns around location tracking\n\n"
-        "Recommended especially if your risk score is 'High' or above. Would you like to know more?",
-    ],
-    'ask_young_driver': [
-        "Young drivers (under 25) face higher premiums due to statistically higher accident rates. Here's how to manage costs:\n\n"
-        "📉 **Discount Opportunities:**\n"
-        "• Pass Plus scheme completion\n"
-        "• Good Student Discount (with academic proof)\n"
-        "• Telematics/black box policy\n"
-        "• Being added as a named driver on parents' policy\n\n"
-        "🚗 **Vehicle Choice Matters:**\n"
-        "• Lower-powered, smaller engine vehicles reduce premiums significantly\n"
-        "• Avoid sports cars and motorcycles as a first vehicle\n"
-        "• A car with good safety ratings (Euro NCAP 5-star) helps\n\n"
-        "📅 **Building a Record:**\n"
-        "• Every clean year reduces your risk score\n"
-        "• After 3 years with no claims, you qualify for No-Claims Bonus\n\n"
-        "Would you like a risk assessment tailored for a young driver profile?",
-    ],
-    'ask_no_claims': [
-        "The **No-Claims Bonus (NCB)** is one of the most valuable discounts in motor insurance.\n\n"
-        "**How it builds:**\n"
-        "• 1 year claim-free: ~20–30% discount\n"
-        "• 2 years: ~35–40%\n"
-        "• 3 years: ~45–50%\n"
-        "• 5+ years: ~55–65% discount\n\n"
-        "**Protecting your NCB:**\n"
-        "✅ NCB Protection add-on allows 1–2 at-fault claims without losing the bonus\n"
-        "✅ Consider whether to claim for small repairs (excess vs premium increase)\n\n"
-        "**Important:** NCB follows the driver, not the vehicle. It transfers between insurers.\n\n"
-        "In our risk model, drivers with 0 previous accidents receive the maximum baseline discount. Want to calculate how your NCB affects your premium?",
-    ],
-    'ask_excess': [
-        "The **policy excess** (or deductible) is the amount YOU pay when making a claim before the insurer covers the rest.\n\n"
-        "**Two types of excess:**\n"
-        "• **Compulsory excess** – Set by the insurer, typically £100–£500 depending on risk profile\n"
-        "• **Voluntary excess** – You can choose to add extra to lower your premium\n\n"
-        "**Example:** If your car suffers £800 damage and your total excess is £300, the insurer pays £500.\n\n"
-        "**Strategy:** Increasing voluntary excess from £0 to £250 can reduce your annual premium by **8–15%**, but only if you can afford to pay it in an emergency.\n\n"
-        "In our risk model, higher-risk drivers are typically assigned higher compulsory excess amounts. Would you like to know how your risk score affects your excess?",
-    ],
-    'ask_credit_score': [
-        "Your **credit score** is used by many UK insurers as a risk indicator — drivers with poor credit are statistically more likely to make claims.\n\n"
-        "**How it affects your premium:**\n"
-        "• Score 750+: Preferred rate — maximum discount\n"
-        "• Score 650–749: Standard rate\n"
-        "• Score 550–649: Small surcharge (+5–10%)\n"
-        "• Score below 550: Significant surcharge (+15–25%)\n\n"
-        "**In our ML model**, credit score is included as a feature. Raising it above 700 removes the surcharge entirely.\n\n"
-        "**How to improve your score:**\n"
-        "✅ Pay bills on time\n"
-        "✅ Keep credit card utilisation below 30%\n"
-        "✅ Avoid multiple credit applications in a short period\n"
-        "✅ Register on the electoral roll\n\n"
-        "Would you like to run a risk assessment to see how your current score affects your result?",
-    ],
-    'ask_comparison': [
-        "Our **Risk Comparison Tool** lets you compare two driver profiles side-by-side!\n\n"
-        "It shows:\n"
-        "• Both risk scores and categories\n"
-        "• Head-to-head bar chart of key metrics\n"
-        "• Factor-by-factor comparison table with a winner indicator\n"
-        "• Class probability charts for each driver\n\n"
-        "Common use cases for insurers:\n"
-        "• Compare a named driver vs main policyholder\n"
-        "• Evaluate a young driver vs experienced driver\n"
-        "• Compare two vehicles for the same driver\n\n"
-        "Visit the **Risk Comparison Tool** from the Tools menu in the navigation bar. Would you like to know more about how the comparison works?",
-    ],
-    'ask_vehicle_risk': [
-        "Different vehicle types carry significantly different insurance risk. Here's our model's vehicle risk ranking:\n\n"
-        "🏍️ **Motorcycle** – Highest risk (+18 pts). No protective bodywork, severe injuries likely in accidents.\n"
-        "🏎️ **Sports Car** – Very high risk (+12 pts). High speeds, younger demographic, expensive to repair.\n"
-        "🚛 **Truck** – Elevated risk (+4 pts). Higher mass = more damage in collisions.\n"
-        "🚙 **SUV** – Moderate risk (+3 pts). Larger footprint, higher centre of gravity.\n"
-        "🚗 **Sedan** – Baseline risk (0 pts). Most common, well-studied risk profile.\n"
-        "🚐 **Van** – Baseline risk (0 pts). Typically commercial use, professional drivers.\n\n"
-        "**Recommendation:** For new or young drivers, starting with a **sedan or van** significantly reduces premiums.\n\n"
-        "Would you like to calculate the premium difference between two vehicle types?",
-    ],
-    'ask_location_risk': [
-        "Where you drive matters as much as how you drive. Here's how location affects your risk score in our model:\n\n"
-        "🏙️ **Urban (City)** – Highest risk (+7 pts)\n"
-        "   Higher traffic density, more pedestrians, frequent stop-start driving\n\n"
-        "🛣️ **Highway / Motorway** – Elevated risk (+4 pts)\n"
-        "   High speeds mean more severe accidents, though frequency is lower\n\n"
-        "🌳 **Rural** – Low risk (+2 pts)\n"
-        "   Lower traffic, but narrow roads and wildlife hazards\n\n"
-        "🏘️ **Suburban** – Baseline risk (0 pts)\n"
-        "   Best balance of low traffic and good road conditions\n\n"
-        "**Insurer tip:** If you drive mostly in suburban or rural areas, make sure this is reflected in your policy declaration — urban rates can be 15–20% higher.\n\n"
-        "Would you like to run an assessment with your specific location?",
-    ],
-    'ask_fraud': [
-        "**Insurance fraud** is a serious issue costing the UK insurance industry over £1 billion per year, which ultimately raises premiums for honest drivers.\n\n"
-        "**Common types of fraud our system helps detect:**\n"
-        "• **Fronting** – Named a lower-risk driver as main policyholder\n"
-        "• **Staged accidents** – Deliberate collisions to claim\n"
-        "• **Ghost broking** – Fake policies sold by unlicensed brokers\n"
-        "• **Inflated claims** – Exaggerating damage or injury\n\n"
-        "**How RiskGuard AI helps:**\n"
-        "Our ML model flags inconsistencies between declared profile and statistical norms — for example, a 19-year-old declaring very low mileage with zero night driving in an urban area would be flagged for review.\n\n"
-        "**Consequences of fraud:**\n"
-        "⚠️ Policy cancellation and blacklisting\n"
-        "⚠️ Criminal prosecution (up to 10 years imprisonment)\n"
-        "⚠️ Difficulty obtaining future insurance\n\n"
-        "Is there anything specific about fraud detection you'd like to know?",
-    ],
-    'affirmative': [
-        "Great! Please head to the **Risk Assessment** section using the navigation menu above, or I can answer more questions here. What would you like to do?",
-    ],
-    'negative': [
-        "No problem! I'm here whenever you're ready. Is there anything else I can help you with?",
-    ],
-    'default': [
-        "I'm not sure I fully understood that. I can help you with:\n\n"
-        "• **Risk Assessment** – Check your driving risk score\n"
-        "• **Premiums** – Understand your insurance costs\n"
-        "• **Safe Driving** – Tips to lower your risk\n"
-        "• **Coverage** – Learn about policy options\n"
-        "• **Young Drivers** – Advice for new drivers\n\n"
-        "Try asking something like: *'What factors affect my premium?'* or *'How can I reduce my risk score?'*",
-    ],
-}
+## Platform Knowledge
+
+**ML Model:** XGBoost (Tuned) — 85.22% accuracy, ROC-AUC 0.9738
+**Comparison:** Decision Tree 73.1% | Logistic Regression 77.7% | Extra Trees 78.2% | Random Forest 81.0% | Gradient Boosting 85.0% | XGBoost 85.22%
+**Dataset:** 30,000 synthetic records, 18 features (12 input + 6 engineered)
+**Stack:** Python 3.13, Flask 3.0, scikit-learn 1.3, XGBoost 3.2, SQLite, Bootstrap 5.3
+
+**Risk Score Scale:**
+- 0–25 → Low Risk (premium multiplier 1.0×)
+- 26–50 → Medium Risk (1.35×)
+- 51–75 → High Risk (1.75×)
+- 76–100 → Very High Risk (2.30×)
+
+**Feature Impact on Score:**
+- previous_accidents: +14 pts each
+- traffic_violations: +5 pts each
+- vehicle_type: motorcycle +18, sports +12, truck +4, suv +3, sedan/van 0
+- primary_location: urban +7, highway +4, rural +2, suburban 0
+- driving_experience <2 yrs: +18; <5 yrs: +8
+- driver_age <25: +(25–age)×1.8 pts
+- marital_status married: −2 pts
+- credit_score <600: +penalty; >750: bonus
+
+**App Features:** Assessment, Dashboard, History, PDF reports, AI Chatbot, Risk Comparison, Insurance Quote, Batch CSV Upload, Certificate, API Docs, Simulator, i18n (English/Uzbek)
+
+## Behaviour Rules
+- **Language:** always reply in the SAME language the user writes in — Uzbek for Uzbek messages, English for English
+- **Format:** use markdown (bold, tables, lists, code) to make answers scannable
+- **Tone:** expert but friendly; think of yourself as an insurance advisor who knows this platform deeply
+- **Scope:** answer anything about insurance, ML, driving risk, the platform, or how scores are calculated
+- **Context:** remember the conversation — refer back to earlier messages when relevant
+- **Brevity:** keep answers focused; avoid padding; use tables when comparing multiple items"""
+
+# ── Comprehensive FAQ Knowledge Base ──────────────────────────────────────────
+FAQ = [
+    # ── GREETING ──────────────────────────────────────────────────────────────
+    {
+        'id': 'greeting',
+        'patterns': [
+            r'\b(hello|hi|hey|good\s*(morning|afternoon|evening)|howdy)\b',
+            r'\b(salom|assalom|xayrli|qalesan|qalay|yaxshimisiz|nima\s*gap|qandaysiz|hoy)\b',
+        ],
+        'response': (
+            "Salom! Men **RiskBot** — RiskGuard AI ning aqlli yordamchisi. 👋\n\n"
+            "🏆 **XGBoost** modeli — 85.22% aniqlik | ROC-AUC 0.9738\n"
+            "📊 30,000 yozuv | 18 xususiyat | 6 model taqqoslash\n\n"
+            "Quyidagi mavzularda yordam bera olaman:\n"
+            "• Sug'urta xavfi va mukofotlari\n"
+            "• ML model va natijalar\n"
+            "• Xavfni kamaytirish maslahatlari\n"
+            "• Platformaning barcha funksiyalari\n\n"
+            "Savol bering — o'zbek yoki ingliz tilida! 🇺🇿🇬🇧"
+        ),
+    },
+    # ── FAREWELL ──────────────────────────────────────────────────────────────
+    {
+        'id': 'farewell',
+        'keywords': ['bye','goodbye','xayr','rahmat','tashakkur','sog\'ling','alvido','see you','take care'],
+        'response': "Xayr! Xavfsiz haydang. RiskGuard AI doim xizmatda! 🛡️\nGoodbye! Drive safely — RiskGuard AI is available 24/7.",
+    },
+    # ── HELP ──────────────────────────────────────────────────────────────────
+    {
+        'id': 'help',
+        'keywords': ['help','yordam','nima qila','ko\'mak','imkoniyat','what can you','guide','assist'],
+        'response': (
+            "**RiskBot — Imkoniyatlar:**\n\n"
+            "🤖 **AI va Model:**\n"
+            "• XGBoost 85.22% aniqlik, ROC-AUC 0.9738\n"
+            "• 6 model taqqoslash (DT, LR, ET, RF, GB, XGBoost)\n"
+            "• 18 xususiyat (12 asosiy + 6 engineered)\n\n"
+            "📊 **Xavf baholash:**\n"
+            "• Xavf ball tizimi (0–100)\n"
+            "• Premium ko'paytuvchilar (1.0×–2.30×)\n"
+            "• Omillar va ularning ta'siri\n\n"
+            "🚗 **Sug'urta:**\n"
+            "• Mukofot hisoblash\n"
+            "• No-Claims Bonus (NCB)\n"
+            "• Telematics/UBI sug'urta\n"
+            "• Coverage turlari\n\n"
+            "💡 Istalgan savolni bering — 24/7 javob beraman!"
+        ),
+    },
+    # ── RISK SCORE ────────────────────────────────────────────────────────────
+    {
+        'id': 'risk_score',
+        'keywords': ['risk score','xavf ball','risk bali','ball nima','score nima','0-100','nol dan yuz'],
+        'response': (
+            "**Xavf Ball Tizimi (Risk Score: 0–100)**\n\n"
+            "| Kategoriya | Ball | Premium |\n"
+            "|-----------|------|----------|\n"
+            "| 🟢 **Low** | 0–25 | 1.0× (asosiy narx) |\n"
+            "| 🟡 **Medium** | 26–50 | 1.35× (+35%) |\n"
+            "| 🔴 **High** | 51–75 | 1.75× (+75%) |\n"
+            "| 🟣 **Very High** | 76–100 | 2.30× (+130%) |\n\n"
+            "**Ball qanday hisoblanadi?**\n"
+            "XGBoost modeli 18 ta xususiyatni tahlil qiladi va har bir omilga ball beradi.\n"
+            "Masalan: 1 ta avaria = +14 ball, motosikl = +18 ball, yoshi <25 = +(25-yosh)×1.8 ball.\n\n"
+            "To'liq baholash uchun `/assessment` sahifasiga o'ting."
+        ),
+    },
+    # ── ASSESSMENT ────────────────────────────────────────────────────────────
+    {
+        'id': 'assessment',
+        'keywords': ['assess','baholash','hisoblash','risk hisob','check my risk','calculate','evaluate','start','boshlash','yangi baholash'],
+        'response': (
+            "**Yangi Risk Baholash:**\n\n"
+            "1️⃣ **Assessment** sahifasiga o'ting (navigatsiyadan)\n"
+            "2️⃣ **12 ta maydonni** to'ldiring:\n"
+            "   • Yosh, tajriba, jins, oilaviy holat\n"
+            "   • Mashina turi, yoshi, yillik masofa\n"
+            "   • Avarialar, qoidabuzarliklar, kecha haydash\n"
+            "   • Kredit bali, joylashuv\n"
+            "3️⃣ **Calculate Risk** tugmasini bosing\n"
+            "4️⃣ **Natija:** Ball, kategoriya, omillar, tavsiyalar, PDF\n\n"
+            "📱 Yoki to'g'ridan-to'g'ri: `/assessment` ga o'ting."
+        ),
+    },
+    # ── PREMIUM / MUKOFOT ─────────────────────────────────────────────────────
+    {
+        'id': 'premium',
+        'keywords': ['premium','mukofot','narx','to\'lov','sug\'urta narxi','qancha','arzon','qimmat','how much','cost','price','reduce premium','kamaytir'],
+        'response': (
+            "**Sug'urta Mukofoti Hisoblash:**\n\n"
+            "Mukofot = **Asosiy narx × Premium ko'paytuvchi**\n\n"
+            "| Xavf darajasi | Ko'paytuvchi | Misol (£500 asosiy) |\n"
+            "|--------------|--------------|---------------------|\n"
+            "| 🟢 Low | **1.0×** | £500 |\n"
+            "| 🟡 Medium | **1.35×** | £675 |\n"
+            "| 🔴 High | **1.75×** | £875 |\n"
+            "| 🟣 Very High | **2.30×** | £1,150 |\n\n"
+            "**Mukofotni kamaytirish yo'llari:**\n"
+            "✅ Telematics qurilma o'rnating → **10–25% chegirma**\n"
+            "✅ NCB 5 yil saqlang → **55–65% chegirma**\n"
+            "✅ Kredit balini 700+ ga olib boring\n"
+            "✅ Yillik masofa 10,000 dan kam ushlab turing\n"
+            "✅ Defensiv haydash kursini tugatib sertifikat oling\n\n"
+            "**Insurance Quote** sahifasida aniq hisoblash mumkin!"
+        ),
+    },
+    # ── COVERAGE ──────────────────────────────────────────────────────────────
+    {
+        'id': 'coverage',
+        'keywords': ['coverage','cover','policy','qoplan','himoya','polisa','sug\'urta turi','third party','comprehensive','tpft','nima qoplanadi'],
+        'response': (
+            "**Sug'urta Turlari (Coverage Types):**\n\n"
+            "🔹 **Third Party Only (TPO)**\n"
+            "Minimal qonuniy talab. Faqat boshqa shaxsga yetkazilgan zarar.\n"
+            "❌ O'z mashinangiz qoplanmaydi\n\n"
+            "🔸 **Third Party, Fire & Theft (TPFT)**\n"
+            "TPO + o'z mashinangiz o'g'irlik yoki yong'inga qarshi.\n"
+            "✅ Narxi tejamli | ❌ O'z mashinangizning ta'miroti yo'q\n\n"
+            "🔴 **Comprehensive (To'liq)**\n"
+            "Hammasi qoplanadi: o'z mashinangiz, tibbiyot, hamma holat.\n"
+            "✅ Eng keng himoya | Ko'proq narx\n\n"
+            "**Tavsiya:**\n"
+            "• Low Risk → TPFT (tejamli)\n"
+            "• Medium Risk → TPFT yoki Comprehensive\n"
+            "• High / Very High → **Comprehensive majburiy**"
+        ),
+    },
+    # ── RISK FACTORS ──────────────────────────────────────────────────────────
+    {
+        'id': 'risk_factors',
+        'keywords': ['risk factor','omil','ta\'sir','oshiradi','kamayadi','nima oshir','nima kamayt','what affect','influence','impact'],
+        'response': (
+            "**Xavf Omillari va Ta'siri:**\n\n"
+            "⬆️ **Xavfni OSHIRUVCHI omillar:**\n"
+            "| Omil | Qo'shimcha ball |\n"
+            "|------|----------------|\n"
+            "| Motosikl | **+18 ball** |\n"
+            "| Sport mashina | **+12 ball** |\n"
+            "| Har bir avaria | **+14 ball** |\n"
+            "| Shahar haydash | **+7 ball** |\n"
+            "| Tajriba <2 yil | **+18 ball** |\n"
+            "| Yosh <25 (masalan 20) | **+9 ball** |\n"
+            "| Har bir qoidabuzarlik | **+5 ball** |\n"
+            "| Magistral | **+4 ball** |\n"
+            "| Truck | **+4 ball** |\n"
+            "| Kredit <600 | **+qo'shimcha** |\n\n"
+            "⬇️ **Xavfni KAMAYTIRADIGAN omillar:**\n"
+            "• Turmushqurgan: **-2 ball**\n"
+            "• Kredit >750: chegirma\n"
+            "• Sedan/Van: 0 qo'shimcha\n"
+            "• Shahar tashqarisi: 0 qo'shimcha\n"
+            "• Tajriba >10 yil: 0 qo'shimcha"
+        ),
+    },
+    # ── ACCIDENTS ─────────────────────────────────────────────────────────────
+    {
+        'id': 'accidents',
+        'keywords': ['accident','avaria','hodisa','to\'qnashuv','halokat','crash','claim','incident','baxtsiz hodisa','jarima'],
+        'response': (
+            "**Avariyalar — Xavf Ballga Ta'siri:**\n\n"
+            "Avvalgi avariyalar eng kuchli prediktor:\n"
+            "• 0 avaria: Qo'shimcha yo'q ✅\n"
+            "• 1 avaria: **+14 ball**\n"
+            "• 2 avaria: **+28 ball**\n"
+            "• 3 avaria: **+42 ball**\n"
+            "• 5 avaria: **+70 ball** (Very High daraja)\n\n"
+            "**Avariya ta'sirini kamaytirish:**\n"
+            "1. 🖥️ Telematics o'rnating — xavfsiz haydashni isbotlang\n"
+            "2. 🎓 Defensiv haydash kursi → premium kamayadi\n"
+            "3. ⏰ 3 yil davomida toza yozuv → accident forgiveness\n"
+            "4. 🛡️ NCB Protection → 1–2 avariya bonusni yo'qotmaydi\n\n"
+            "**Muhim:** So'nggi 3 yildagi avariyalar eng ko'p ta'sir qiladi."
+        ),
+    },
+    # ── SAFE DRIVING ──────────────────────────────────────────────────────────
+    {
+        'id': 'safe_driving',
+        'keywords': ['safe driving','xavfsiz haydash','kamaytir','yaxshila','maslahat','tips','advice','reduce risk','lower risk','nima qilsam','qanday yaxshi','how to reduce'],
+        'response': (
+            "**Xavf Ballini Kamaytirish — Top Maslahatlar:**\n\n"
+            "🏆 **Eng ta'sirchan (katta o'zgarish):**\n"
+            "1. Telematics qurilma → **10–25% chegirma**\n"
+            "2. 3+ yil toza yozuv → **eng katta ta'sir**\n"
+            "3. Kredit balini 700+ ga olib boring\n\n"
+            "🚗 **Haydash odati:**\n"
+            "• Tezlik chegarasini doim saqlang\n"
+            "• Kechasi haydashni 20% dan kam ushlab turing\n"
+            "• Yillik masofa 10,000 milyadan kam\n"
+            "• Tez-tez tormoz bosishdan saqlaning\n\n"
+            "🎓 **O'qish:**\n"
+            "• IAM Advanced Motorists kursi\n"
+            "• Defensiv haydash sertifikati\n"
+            "• Pass Plus (yangi haydovchilar uchun)\n\n"
+            "🚙 **Mashina:**\n"
+            "• Sport/motosikldan sedan/vanga o'ting\n"
+            "• ADAS xavfsizlik tizimlari\n"
+            "• Shahar tashqarisida ko'proq haydash"
+        ),
+    },
+    # ── XGBOOST / ML MODEL ────────────────────────────────────────────────────
+    {
+        'id': 'ml_model',
+        'keywords': ['xgboost','model','algoritm','machine learning','ml','sun\'iy intellekt','ai model','gradient','random forest','decision tree','how it works','qanday ishlaydi','aniqlik','accuracy'],
+        'response': (
+            "**RiskGuard AI — ML Pipeline:**\n\n"
+            "**6 ta model taqqoslandi:**\n"
+            "| Model | Aniqlik | ROC-AUC |\n"
+            "|-------|---------|----------|\n"
+            "| Decision Tree | 73.1% | 0.871 |\n"
+            "| Logistic Regression | 77.7% | 0.936 |\n"
+            "| Extra Trees | 78.2% | 0.944 |\n"
+            "| Random Forest | 81.0% | 0.958 |\n"
+            "| Gradient Boosting | 85.0% | 0.973 |\n"
+            "| 🏆 **XGBoost (Tuned)** | **85.22%** | **0.9738** |\n\n"
+            "**Nima uchun XGBoost?**\n"
+            "✅ L1/L2 regularizatsiya — overfitting yo'q\n"
+            "✅ Parallel hisob-kitob — tez ishlaydi\n"
+            "✅ Tabular ma'lumotlarda eng yaxshi\n\n"
+            "**Pipeline:**\n"
+            "1. EngineerFeatures (18 xususiyat yaratish)\n"
+            "2. StandardScaler + OneHotEncoder\n"
+            "3. GridSearchCV (32 kombo × 3-fold CV)\n"
+            "4. XGBoost prediction + risk score\n\n"
+            "To'liq natijalar: `/model-report` sahifasida"
+        ),
+    },
+    # ── DATASET ───────────────────────────────────────────────────────────────
+    {
+        'id': 'dataset',
+        'keywords': ['dataset','ma\'lumot to\'plam','yozuv','sintetik','30000','30 ming','trening','training data','nechta yozuv'],
+        'response': (
+            "**RiskGuard AI Dataset:**\n\n"
+            "📊 **Ko'lam:** 30,000 sintetik yozuv\n"
+            "🎯 **Taqsimot (Balanced):**\n"
+            "• 🟢 Low Risk: 35% (10,500)\n"
+            "• 🟡 Medium Risk: 35% (10,500)\n"
+            "• 🔴 High Risk: 20% (6,000)\n"
+            "• 🟣 Very High Risk: 10% (3,000)\n\n"
+            "**Qanday yaratildi?**\n"
+            "Haqiqiy sug'urta aktuarial formulalariga asoslangan algoritmik generatsiya.\n"
+            "Har bir yozuv 12 ta xususiyat va 6 ta interaction effect dan iborat.\n\n"
+            "**Feature Engineering (18 xususiyat):**\n"
+            "• 12 ta asosiy kirish (user form)\n"
+            "• 6 ta engineered: acc_per_exp, viol_per_exp, youth_risk,\n"
+            "  senior_risk, risk_combo, high_risk_vehicle\n\n"
+            "Train/Test split: 80/20 (24,000 / 6,000)"
+        ),
+    },
+    # ── TELEMATICS ────────────────────────────────────────────────────────────
+    {
+        'id': 'telematics',
+        'keywords': ['telematics','black box','qora quti','ubi','usage-based','kuzatuv','tracking device'],
+        'response': (
+            "**Telematics (Black Box) Sug'urta:**\n\n"
+            "Qurilma haydash xulqini kuzatadi:\n"
+            "📍 Tezlik | 🛑 Tormoz | 🔄 Burilish | 🌙 Vaqt | 📏 Masofa\n\n"
+            "**Afzalliklari:**\n"
+            "✅ Xavfsiz haydovchilar uchun **10–25% chegirma**\n"
+            "✅ Yosh haydovchilar uchun ideal — tajribani isbotlash\n"
+            "✅ Avariyadan keyin xavfsiz haydashni ko'rsatish\n"
+            "✅ Haqiqiy haydash xulqiga asoslangan baho\n"
+            "✅ Real-time fikr-mulohaza va tavsiyalar\n\n"
+            "**Kamchiliklari:**\n"
+            "❌ Yomon ball mukofotni oshirishi mumkin\n"
+            "❌ Joylashuv kuzatuvi — maxfiylik muammosi\n\n"
+            "**Kimga tavsiya etiladi?**\n"
+            "🎯 High yoki Very High risk profillari uchun — eng yaxshi yechim!\n"
+            "🎯 Birinchi yil haydovchilar uchun majburiy bo'lishi mumkin."
+        ),
+    },
+    # ── YOUNG DRIVER ──────────────────────────────────────────────────────────
+    {
+        'id': 'young_driver',
+        'keywords': ['young driver','yosh haydovchi','yangi haydovchi','birinchi bor','learner','student driver','17','18','19','20','21','22','23','24','first time','pass plus'],
+        'response': (
+            "**Yosh Haydovchilar (<25 yosh) — Maslahatlar:**\n\n"
+            "🔴 Muammo: Statistik jihatdan yosh haydovchilar ko'proq avariyaga uchraydi.\n"
+            "• 20 yoshli haydovchi: +(25-20)×1.8 = **+9 ball** qo'shimcha\n\n"
+            "📉 **Chegirma imkoniyatlari:**\n"
+            "• **Pass Plus** sxemasini bajaring → chegirma\n"
+            "• **Good Student Discount** → akademik ko'rsatkich\n"
+            "• **Telematics polisa** → **10–25% chegirma** xavfsiz haydashda\n"
+            "• Ota-onaning polisasiga qo'shimcha haydovchi sifatida kirish\n\n"
+            "🚗 **Mashina tanlash:**\n"
+            "• ❌ Sport va motosikldan saqlaning (+12/+18 ball)\n"
+            "• ✅ Kichik sedan yoki van tanlang (0 qo'shimcha)\n"
+            "• Euro NCAP 5-yulduz sertifikati bo'lgan mashina\n\n"
+            "📅 **Uzoq muddatli strategiya:**\n"
+            "• Har toza yil — risk bali kamayadi\n"
+            "• 3 yildan keyin NCB boshlaydi\n"
+            "• 25 yoshdan so'ng chegirma avtomatik oshadi\n\n"
+            "💡 RiskGuard AI da yosh haydovchi profilini baholang!"
+        ),
+    },
+    # ── NCB ───────────────────────────────────────────────────────────────────
+    {
+        'id': 'ncb',
+        'keywords': ['ncb','no claims','no-claims','chegirma','bonus','baxtsiz hodisasiz','claim-free','loyalty','discount'],
+        'response': (
+            "**No-Claims Bonus (NCB) — Baxtsiz Hodisasiz Bonus:**\n\n"
+            "| Yil | Chegirma |\n"
+            "|-----|----------|\n"
+            "| 1 yil | **20–30%** |\n"
+            "| 2 yil | **35–40%** |\n"
+            "| 3 yil | **45–50%** |\n"
+            "| 5+ yil | **55–65%** |\n\n"
+            "**NCB ni himoya qilish (NCB Protection):**\n"
+            "✅ Polisaga NCB Protection qo'shing\n"
+            "✅ 1–2 avaria bonusni yo'qotmaydi\n"
+            "✅ Kichik ta'mirlash uchun da'vo qilishdan oldin o'ylang\n\n"
+            "**Muhim bilimlar:**\n"
+            "• NCB **haydovchiga** bog'liq, mashinaga emas\n"
+            "• Sug'urta kompaniyasini almashtirsangiz ham NCB saqlanadi\n"
+            "• Boshqa odamning mashinasini haydash NCB ga ta'sir qilmaydi\n\n"
+            "RiskGuard AI Insurance Quote sahifasida NCB chegirmasini hisoblang!"
+        ),
+    },
+    # ── CREDIT SCORE ──────────────────────────────────────────────────────────
+    {
+        'id': 'credit_score',
+        'keywords': ['credit score','kredit','kredit bali','kredit reyting','fico','moliyaviy','financial','credit rating'],
+        'response': (
+            "**Kredit Bali va Sug'urta:**\n\n"
+            "Ko'plab sug'urta kompaniyalari kredit balini risk ko'rsatkichi sifatida ishlatadi:\n\n"
+            "| Kredit Bali | Ta'sir |\n"
+            "|-------------|--------|\n"
+            "| 750+ | Preferred rate — maksimal chegirma ✅ |\n"
+            "| 650–749 | Standart rate |\n"
+            "| 550–649 | Kichik qo'shimcha (+5–10%) |\n"
+            "| <550 | Muhim qo'shimcha (+15–25%) |\n\n"
+            "**RiskGuard AI da:** kredit bali 18 xususiyatdan biri.\n"
+            "700 dan yuqori → qo'shimcha chegirma.\n\n"
+            "**Kredit balini yaxshilash:**\n"
+            "✅ To'lovlarni o'z vaqtida to'lang\n"
+            "✅ Kredit karta limitini 30% dan kam ushlab turing\n"
+            "✅ Qisqa muddatda ko'p kredit so'rovidan saqlaning\n"
+            "✅ Electoral roll ga ro'yxatdan o'ting"
+        ),
+    },
+    # ── VEHICLE TYPES ─────────────────────────────────────────────────────────
+    {
+        'id': 'vehicle_types',
+        'keywords': ['vehicle type','mashina turi','motosikl','motorcycle','sport mashina','sports car','suv','truck','sedan','van','qaysi mashina','risky car','xavfli mashina'],
+        'response': (
+            "**Mashina Turlari va Xavf Darajalari:**\n\n"
+            "| Mashina | Qo'shimcha Ball | Sababi |\n"
+            "|---------|-----------------|--------|\n"
+            "| 🏍️ Motosikl | **+18 ball** | Himoya yo'q, og'ir jarohat |\n"
+            "| 🏎️ Sport | **+12 ball** | Yuqori tezlik, qimmat ta'mirlash |\n"
+            "| 🚛 Truck | **+4 ball** | Katta massa = katta zarar |\n"
+            "| 🚙 SUV | **+3 ball** | Katta o'lcham, og'ir boshqaruv |\n"
+            "| 🚗 Sedan | **0 ball** | Standart — eng yaxshi tanlov |\n"
+            "| 🚐 Van | **0 ball** | Professional haydovchilar |\n\n"
+            "**Tavsiya:**\n"
+            "🎯 Yosh va yangi haydovchilar uchun: **Sedan yoki Van**\n"
+            "🎯 High Risk profili uchun sport/motosikldan foydalanmang\n"
+            "🎯 Euro NCAP 5-yulduz mashinalar sug'urta chegirmasi olishi mumkin"
+        ),
+    },
+    # ── LOCATION ──────────────────────────────────────────────────────────────
+    {
+        'id': 'location',
+        'keywords': ['location','joylashuv','shahar','qishloq','magistral','urban','rural','highway','suburban','city driving'],
+        'response': (
+            "**Haydash Joylashuvi va Xavf:**\n\n"
+            "| Joylashuv | Qo'shimcha | Sababi |\n"
+            "|-----------|------------|--------|\n"
+            "| 🏙️ Urban (Shahar) | **+7 ball** | Ko'p transport, piyodalar, to'xtash-yurish |\n"
+            "| 🛣️ Highway (Magistral) | **+4 ball** | Yuqori tezlik, og'ir avariyalar |\n"
+            "| 🌳 Rural (Qishloq) | **+2 ball** | Tor yo'llar, hayvonlar |\n"
+            "| 🏘️ Suburban | **0 ball** | Eng yaxshi balans |\n\n"
+            "**Amaliy maslahat:**\n"
+            "💡 Asosan shahar tashqarisida haydashingizni polisada ko'rsating!\n"
+            "Shahar tarifi **15–20% qimmatroq** bo'lishi mumkin.\n\n"
+            "**RiskGuard AI da:** Joylashuv 18 xususiyatdan biri sifatida XGBoost ga beriladi.\n"
+            "Suburban dan Urban ga o'tish taxminan **7 ball** oshiradi."
+        ),
+    },
+    # ── PDF REPORT ────────────────────────────────────────────────────────────
+    {
+        'id': 'pdf_report',
+        'keywords': ['pdf','report','hisobot','download','yuklab','download report','pdf hisobot','generate'],
+        'response': (
+            "**PDF Hisobot Yaratish:**\n\n"
+            "Baholash tugagandan so'ng:\n"
+            "1. Natija sahifasida **'Download PDF'** tugmasini bosing\n"
+            "2. Hisobot avtomatik yaratiladi va yuklanadi\n\n"
+            "**PDF hisobotda:**\n"
+            "📋 Haydovchi va mashina profili\n"
+            "📊 Risk bali va kategoriyasi\n"
+            "💰 Premium ko'paytuvchi va da'vo ehtimoli\n"
+            "🔍 Omillar tahlili\n"
+            "💡 Shaxsiy tavsiyalar\n"
+            "🏷️ RiskGuard AI brendi bilan rasmiylashtirilgan\n\n"
+            "**History sahifasida** barcha o'tgan baholashlarning PDF ni ham yuklab olish mumkin.\n\n"
+            "Sertifikat ham yaratish mumkin: **/certificate/[ID]**"
+        ),
+    },
+    # ── DASHBOARD ─────────────────────────────────────────────────────────────
+    {
+        'id': 'dashboard',
+        'keywords': ['dashboard','analytics','statistika','grafik','chart','tahlil','jadval','diagramma'],
+        'response': (
+            "**Analytics Dashboard:**\n\n"
+            "📊 **Ko'rsatkichlar:**\n"
+            "• Jami baholashlar soni\n"
+            "• Risk kategoriyasi taqsimoti\n"
+            "• Model aniqlik metrika (XGBoost 85.22%, ROC-AUC 0.9738)\n"
+            "• Oylik trend (line chart)\n\n"
+            "📈 **Grafiklar:**\n"
+            "• Yosh taqsimoti bar chart\n"
+            "• Joylashuv va mashina turi statistikasi\n"
+            "• Risk score taqsimoti\n"
+            "• Real-time yangilanish (LIVE badge)\n\n"
+            "🔗 Navigatsiyadan **Analytics Dashboard** ni bosing.\n"
+            "CSV eksport ham mavjud: **Export CSV** tugmasi."
+        ),
+    },
+    # ── BATCH UPLOAD ──────────────────────────────────────────────────────────
+    {
+        'id': 'batch',
+        'keywords': ['batch','csv','bulk','ommaviy','ko\'p yozuv','bir nechta','mass upload','batch upload'],
+        'response': (
+            "**Batch CSV Upload — Ommaviy Baholash:**\n\n"
+            "Bir vaqtda **10,000 gacha** haydovchini baholang:\n\n"
+            "1. `/batch-upload` sahifasiga o'ting\n"
+            "2. CSV faylni drag & drop qiling\n"
+            "3. **Upload** tugmasini bosing\n"
+            "4. Natija: saqlangan yozuv soni va xato hisoboti\n\n"
+            "**CSV formati (12 ta ustun):**\n"
+            "```\n"
+            "driver_age, driving_experience, annual_mileage, vehicle_age,\n"
+            "previous_accidents, traffic_violations, night_driving_pct,\n"
+            "credit_score, vehicle_type, primary_location, marital_status, gender\n"
+            "```\n\n"
+            "Barcha natijalarni eksport qilish: `/api/export-csv`"
+        ),
+    },
+    # ── COMPARISON ────────────────────────────────────────────────────────────
+    {
+        'id': 'comparison',
+        'keywords': ['compare','comparison','taqqosla','ikki haydovchi','versus','vs','farq','two driver','solishtiruv'],
+        'response': (
+            "**Risk Comparison Tool:**\n\n"
+            "Ikki haydovchi profilini bir vaqtda taqqoslang!\n\n"
+            "**Ko'rsatadi:**\n"
+            "📊 Ikkala profil risk ball va kategoriyasi\n"
+            "📈 Head-to-head bar chart\n"
+            "🏆 Har bir omil bo'yicha g'olib indikator\n"
+            "🎯 Class probability chart\n\n"
+            "**Foydalanish holatlari:**\n"
+            "• Asosiy va qo'shimcha haydovchi taqqoslash\n"
+            "• Yosh va tajribali haydovchi solishtirish\n"
+            "• Bir xil haydovchi uchun ikki xil mashina\n"
+            "• Segmentatsiya tahlili (sug'urta kompaniyalari uchun)\n\n"
+            "🔗 Tools menyusidan **Risk Comparison** ni bosing."
+        ),
+    },
+    # ── QUOTE ─────────────────────────────────────────────────────────────────
+    {
+        'id': 'quote',
+        'keywords': ['quote','insurance quote','kotirovka','narx hisob','mukofot hisobla','calculate premium'],
+        'response': (
+            "**Insurance Quote Calculator:**\n\n"
+            "Risk ballingiz asosida to'liq mukofot hisoblang:\n\n"
+            "1. `/quote` sahifasiga o'ting\n"
+            "2. Avvalgi assessment natijangizni kiriting yoki yangi baholang\n"
+            "3. **NCB yillarini** kiriting (chegirma uchun)\n"
+            "4. Yillik asosiy narxni kiriting\n"
+            "5. **Hisoblash** tugmasini bosing\n\n"
+            "**Hisoblash formulasi:**\n"
+            "Yakuniy narx = Asosiy narx × Premium ko'paytuvchi × (1 − NCB chegirma)\n\n"
+            "NCB chegirmalari:\n"
+            "• 1 yil: 20–30% | 2 yil: 35–40% | 5+ yil: 55–65%"
+        ),
+    },
+    # ── PLATFORM / ABOUT ──────────────────────────────────────────────────────
+    {
+        'id': 'platform',
+        'keywords': ['riskguard','platform','loyiha','dastur haqida','nima bu','what is riskguard','technology','tech stack'],
+        'response': (
+            "**RiskGuard AI — Platforma haqida:**\n\n"
+            "🎓 **Loyiha:** Pearson BTEC Level 6 Diploma in Digital Technologies\n"
+            "   PDP University, Tashkent, O'zbekiston\n\n"
+            "🛠️ **Texnologiyalar:**\n"
+            "• Backend: **Python 3.13 + Flask 3.0**\n"
+            "• ML: **scikit-learn 1.3 + XGBoost 3.2**\n"
+            "• Database: **SQLite + SQLAlchemy**\n"
+            "• Frontend: **Bootstrap 5.3 + Chart.js 4.4**\n"
+            "• AI Chat: **Claude Sonnet 4.6 / Google Gemini** (+ regex fallback)\n\n"
+            "📊 **ML Natijalar:**\n"
+            "• XGBoost: **85.22% aniqlik, ROC-AUC 0.9738**\n"
+            "• Dataset: 30,000 sintetik yozuv\n"
+            "• Features: 18 (12 asosiy + 6 engineered)\n\n"
+            "🔒 **Xavfsizlik:** CSRF, Rate Limiting, bcrypt, HTTPOnly cookies\n\n"
+            "**Funksiyalar:** Assessment, Dashboard, History, PDF, Chatbot,\n"
+            "Comparison, Quote, Batch Upload, Certificate, API Docs, Simulator"
+        ),
+    },
+    # ── UZBEK LANGUAGE ────────────────────────────────────────────────────────
+    {
+        'id': 'uzbek',
+        'keywords': ['o\'zbek','uzbek','uzbekcha','o\'zbekcha','uzb tilida','uzbek tili'],
+        'response': (
+            "Ha, men o'zbek tilida ham to'liq javob bera olaman! 🇺🇿\n\n"
+            "O'zbek tilida quyidagi mavzularda savol bering:\n"
+            "• Xavf bahosi va kategoriyalar\n"
+            "• Sug'urta mukofoti va chegirmalar\n"
+            "• Mashina tanlash va xavf omillari\n"
+            "• XGBoost ML model natijalari\n"
+            "• Yosh haydovchi maslahatlari\n"
+            "• Telematics va No-Claims Bonus\n"
+            "• Dashboard va platformaning barcha funksiyalari\n\n"
+            "Savol bering — men 24/7 tayorman! 💬"
+        ),
+    },
+    # ── FRAUD ─────────────────────────────────────────────────────────────────
+    {
+        'id': 'fraud',
+        'keywords': ['fraud','soxta','aldov','false claim','ghost broker','fronting','staged accident'],
+        'response': (
+            "**Sug'urta Firibgarligi (Insurance Fraud):**\n\n"
+            "UK sug'urta sanoatiga har yili **£1 milliard+** zarar yetkazadi.\n\n"
+            "**Asosiy firibgarlik turlari:**\n"
+            "• **Fronting** — asosiy haydovchi sifatida past risk kishi ko'rsatish\n"
+            "• **Staged accidents** — sun'iy avariyalar\n"
+            "• **Ghost broking** — soxta polisa sotish\n"
+            "• **Inflated claims** — zarar miqdorini oshirib ko'rsatish\n\n"
+            "**RiskGuard AI qanday yordam beradi?**\n"
+            "ML modeli statistik anomaliyalarni aniqlaydi:\n"
+            "• 19 yoshli + 0 km haydash profili flaglanadi\n"
+            "• Kredit bali va risk faktori nomuvofiqliklar\n\n"
+            "**Oqibatlari:**\n"
+            "⚠️ Polisani bekor qilish va qora ro'yxatga olish\n"
+            "⚠️ Jinoiy javobgarlik (10 yilgacha)\n"
+            "⚠️ Keyingi sug'urta olishda qiyinchilik"
+        ),
+    },
+    # ── API DOCS ──────────────────────────────────────────────────────────────
+    {
+        'id': 'api',
+        'keywords': ['api','endpoint','rest api','api docs','developer','integration','json','swagger'],
+        'response': (
+            "**RiskGuard AI — REST API:**\n\n"
+            "**Asosiy endpointlar:**\n"
+            "```\n"
+            "POST /api/assess        — Risk baholash\n"
+            "GET  /api/stats         — Dashboard statistika\n"
+            "GET  /api/history       — Baholash tarixi\n"
+            "GET  /api/export-csv    — CSV eksport\n"
+            "POST /api/compare       — Ikki profil taqqoslash\n"
+            "POST /api/batch-upload  — Ommaviy CSV baholash\n"
+            "POST /api/chat          — Chatbot\n"
+            "GET  /api/model-metrics — ML model metrikalar\n"
+            "```\n\n"
+            "**To'liq dokumentatsiya:** `/api-docs` sahifasiga o'ting.\n\n"
+            "Authentication: Flask-Login session cookie.\n"
+            "Rate limiting: 60 req/min (API), 10 req/min (login)."
+        ),
+    },
+    # ── SECURITY ──────────────────────────────────────────────────────────────
+    {
+        'id': 'security',
+        'keywords': ['security','xavfsizlik','csrf','password','login','authentication','session','rate limit'],
+        'response': (
+            "**RiskGuard AI Xavfsizlik Choralari:**\n\n"
+            "🔒 **Autentifikatsiya:**\n"
+            "• Flask-Login session management\n"
+            "• bcrypt parol hashing\n"
+            "• 8 soatlik session muddati\n\n"
+            "🛡️ **Himoya:**\n"
+            "• CSRF tokenlar (Flask-WTF) barcha POST so'rovlarda\n"
+            "• Rate limiting: 10 req/min login, 60 req/min API\n"
+            "• HTTPOnly + SameSite=Lax cookie\n\n"
+            "🔐 **HTTP Security Headers:**\n"
+            "• X-Content-Type-Options: nosniff\n"
+            "• X-Frame-Options: DENY (clickjacking himoyasi)\n"
+            "• Referrer-Policy: strict-origin-when-cross-origin\n\n"
+            "📝 **Logging:**\n"
+            "• RotatingFileHandler (app.log, 1MB limit)\n"
+            "• Barcha login urinishlari va muhim harakatlar loglanadi"
+        ),
+    },
+    # ── GENERAL QUESTIONS ─────────────────────────────────────────────────────
+    {
+        'id': 'affirmative',
+        'keywords': ['yes','ha','albatta','ok','okay','sure','mayli','yep','go ahead'],
+        'response': "Zo'r! Qanday yordam bera olaman? 🚀",
+    },
+    {
+        'id': 'negative',
+        'keywords': ['no','yo\'q','kerak emas','bekor','nope','cancel','skip'],
+        'response': "Mayli, boshqa savol bo'lsa men doim shu yerdaman! 😊",
+    },
+    {
+        'id': 'thanks',
+        'keywords': ['thanks','thank you','rahmat','tashakkur','rakhmat','minnatdorman','great','perfect','zo\'r','yaxshi'],
+        'response': "Xush kelibsiz! 😊 Boshqa savol bo'lsa, men 24/7 tayorman. Xavfsiz haydang! 🚗",
+    },
+]
+
+# Default response when nothing matches
+DEFAULT_RESPONSE = (
+    "Savolingiz uchun rahmat! Men quyidagilarda yordam bera olaman:\n\n"
+    "📋 **Tez-tez so'raladigan savollar:**\n"
+    "• `xavf ball nima?` — Risk score tizimi haqida\n"
+    "• `mukofot qanday hisoblanadi?` — Premium tizimi\n"
+    "• `XGBoost nima?` — ML model natijasi\n"
+    "• `xavfni qanday kamaytiray?` — Amaliy maslahatlar\n"
+    "• `yosh haydovchi uchun maslahat` — NCB, telematics\n"
+    "• `telematics nima?` — Black box sug'urta\n"
+    "• `coverage turlari` — TPO, TPFT, Comprehensive\n"
+    "• `dataset haqida` — 30,000 yozuv, 18 xususiyat\n"
+    "• `batch upload` — CSV ommaviy baholash\n\n"
+    "Ingliz yoki o'zbek tilida yozing — men 24/7 tayorman! 🤖"
+)
 
 
-_ENGINE_MODEL = 'claude-haiku-4-5-20251001'
-
-SYSTEM_PROMPT = """You are RiskBot, an expert AI assistant for RiskGuard AI — a road accident risk assessment platform for insurance companies.
-
-You help users understand:
-- Their insurance risk scores (0-100 scale)
-- Premium multipliers (Low: 1.0×, Medium: 1.35×, High: 1.75×, Very High: 2.3×)
-- Risk factors: driver age, experience, accidents, violations, vehicle type, location, credit score, night driving
-- How to reduce their risk score and premiums
-- Insurance coverage types (Third Party, TPFT, Comprehensive)
-- Telematics/black box insurance
-- No-Claims Bonus (NCB)
-- Young driver advice
-- The ML model (Random Forest/Gradient Boosting trained on 12,000 records)
-
-Risk score bands:
-- 0-25: Low Risk (green)
-- 26-50: Medium Risk (amber)
-- 51-75: High Risk (red)
-- 76-100: Very High Risk (purple)
-
-Key risk factor points:
-- Motorcycle: +18pts, Sports car: +12pts, Truck: +4pts, SUV: +3pts
-- Urban: +7pts, Highway: +4pts, Rural: +2pts
-- Each accident (3yr): +14pts
-- Age under 25 or over 65: higher risk
-- Credit score below 600: surcharge
-
-Always be helpful, concise, and professional. Answer in the same language the user writes in (English or Uzbek). If asked in Uzbek, reply in Uzbek. Keep responses focused and practical."""
-
-
+# ── RiskChatbot class ──────────────────────────────────────────────────────────
 class RiskChatbot:
     def __init__(self):
         self.conversation_history = []
-        self.response_indices = {intent: 0 for intent in RESPONSES}
-        api_key = os.environ.get('ANTHROPIC_API_KEY', '')
-        if _ANTHROPIC_AVAILABLE and api_key:
-            self._client = _anthropic.Anthropic(api_key=api_key)
-            self._use_ai = True
+
+        # ── Gemini (free) ───────────────────────────────────────────────────
+        gemini_key = os.environ.get('GEMINI_API_KEY', '').strip()
+        if _GEMINI_AVAILABLE and gemini_key:
+            try:
+                self._gemini_client = _genai.Client(api_key=gemini_key)
+                self._use_gemini = True
+            except Exception:
+                self._gemini_client = None
+                self._use_gemini = False
         else:
-            self._client = None
-            self._use_ai = False
+            self._gemini_client = None
+            self._use_gemini = False
+
+        # ── Claude (when credits available) ────────────────────────────────
+        claude_key = os.environ.get('ANTHROPIC_API_KEY', '').strip()
+        if _ANTHROPIC_AVAILABLE and claude_key:
+            try:
+                self._claude_client = _anthropic.Anthropic(api_key=claude_key)
+                self._use_claude = True
+            except Exception:
+                self._claude_client = None
+                self._use_claude = False
+        else:
+            self._claude_client = None
+            self._use_claude = False
+
+        self._use_ai = self._use_gemini or self._use_claude
 
     @property
     def ai_enabled(self):
         return self._use_ai
 
-    def detect_intent(self, message: str) -> str:
+    def _find_faq(self, message: str) -> str | None:
+        """Two-pass FAQ lookup: regex patterns then substring keywords."""
         msg = message.lower().strip()
-        for intent, patterns in INTENTS.items():
-            for pattern in patterns:
-                if re.search(pattern, msg):
-                    return intent
-        return 'default'
 
-    def get_response(self, intent: str) -> str:
-        responses = RESPONSES.get(intent, RESPONSES['default'])
-        idx = self.response_indices.get(intent, 0) % len(responses)
-        self.response_indices[intent] = (idx + 1) % len(responses)
-        return responses[idx]
+        # Pass 1: regex
+        for faq in FAQ:
+            for pattern in faq.get('patterns', []):
+                if re.search(pattern, msg, re.IGNORECASE):
+                    return faq['response']
 
-    def _ai_chat(self, user_message: str) -> str:
+        # Pass 2: substring keywords
+        for faq in FAQ:
+            for kw in faq.get('keywords', []):
+                if kw.lower() in msg:
+                    return faq['response']
+
+        return None
+
+    def _gemini_chat(self, user_message: str) -> str:
+        history_text = ""
+        for entry in self.conversation_history[-6:]:
+            role = "User" if entry['role'] == 'user' else "Assistant"
+            history_text += f"{role}: {entry['message']}\n"
+
+        prompt = f"{SYSTEM_PROMPT}\n\n{history_text}User: {user_message}\nAssistant:"
+        response = self._gemini_client.models.generate_content(
+            model="gemini-2.0-flash",
+            contents=prompt,
+        )
+        return response.text
+
+    def _claude_chat(self, user_message: str) -> str:
         messages = []
         for entry in self.conversation_history[-10:]:
-            role = 'user' if entry['role'] == 'user' else 'assistant'
-            messages.append({'role': role, 'content': entry['message']})
+            messages.append({
+                'role': 'user' if entry['role'] == 'user' else 'assistant',
+                'content': entry['message']
+            })
         messages.append({'role': 'user', 'content': user_message})
-
-        response = self._client.messages.create(
-            model=_ENGINE_MODEL,
-            max_tokens=600,
-            system=SYSTEM_PROMPT,
+        response = self._claude_client.messages.create(
+            model='claude-sonnet-4-6',
+            max_tokens=1200,
+            system=[{"type": "text", "text": SYSTEM_PROMPT,
+                     "cache_control": {"type": "ephemeral"}}],
             messages=messages,
         )
         return response.content[0].text
 
-    def chat(self, user_message: str) -> dict:
-        if self._use_ai:
-            try:
-                response = self._ai_chat(user_message)
-                intent = 'ai'
-            except Exception as e:
-                intent = self.detect_intent(user_message)
-                response = self.get_response(intent)
-        else:
-            intent = self.detect_intent(user_message)
-            response = self.get_response(intent)
+    def stream_chat(self, user_message: str):
+        """Yield text chunks for streaming response."""
+        # 1. FAQ match → instant, language-correct response
+        faq_response = self._find_faq(user_message)
+        if faq_response:
+            self._save_history(user_message, faq_response, 'faq')
+            yield faq_response
+            return
 
-        self.conversation_history.append({
-            'role': 'user',
-            'message': user_message,
-            'timestamp': datetime.now().isoformat(),
-        })
-        self.conversation_history.append({
-            'role': 'bot',
-            'message': response,
-            'intent': intent,
-            'timestamp': datetime.now().isoformat(),
-        })
+        # 2. Try Gemini for unrecognised queries
+        if self._use_gemini:
+            try:
+                result = self._gemini_chat(user_message)
+                self._save_history(user_message, result, 'gemini')
+                yield result
+                return
+            except Exception:
+                pass
+
+        # 3. Try Claude for unrecognised queries
+        if self._use_claude:
+            full = ''
+            try:
+                messages = []
+                for entry in self.conversation_history[-10:]:
+                    messages.append({
+                        'role': 'user' if entry['role'] == 'user' else 'assistant',
+                        'content': entry['message'],
+                    })
+                messages.append({'role': 'user', 'content': user_message})
+                with self._claude_client.messages.stream(
+                    model='claude-sonnet-4-6', max_tokens=1200,
+                    system=[{"type": "text", "text": SYSTEM_PROMPT,
+                             "cache_control": {"type": "ephemeral"}}],
+                    messages=messages,
+                ) as stream:
+                    for text in stream.text_stream:
+                        full += text
+                        yield text
+                self._save_history(user_message, full, 'claude')
+                return
+            except Exception:
+                pass
+
+        # 4. Default fallback
+        self._save_history(user_message, DEFAULT_RESPONSE, 'faq')
+        yield DEFAULT_RESPONSE
+
+    def chat(self, user_message: str) -> dict:
+        """Non-streaming chat for /api/chat endpoint."""
+        # 1. FAQ match → instant, language-correct response
+        faq_response = self._find_faq(user_message)
+        if faq_response:
+            self._save_history(user_message, faq_response, 'faq')
+            return {
+                'response': faq_response,
+                'intent': 'faq',
+                'ai_powered': self._use_ai,
+                'timestamp': datetime.now().strftime('%H:%M'),
+            }
+
+        intent = 'default'
+        response = None
+
+        if self._use_gemini:
+            try:
+                response = self._gemini_chat(user_message)
+                intent = 'gemini'
+            except Exception:
+                pass
+
+        if response is None and self._use_claude:
+            try:
+                response = self._claude_chat(user_message)
+                intent = 'claude'
+            except Exception:
+                pass
+
+        if response is None:
+            response = DEFAULT_RESPONSE
+
+        self._save_history(user_message, response, intent)
         return {
             'response': response,
             'intent': intent,
             'ai_powered': self._use_ai,
             'timestamp': datetime.now().strftime('%H:%M'),
         }
+
+    def _save_history(self, user_msg: str, bot_msg: str, intent: str):
+        ts = datetime.now().isoformat()
+        self.conversation_history.extend([
+            {'role': 'user', 'message': user_msg, 'timestamp': ts},
+            {'role': 'bot',  'message': bot_msg,  'intent': intent, 'timestamp': ts},
+        ])
+        # Keep last 20 turns
+        if len(self.conversation_history) > 40:
+            self.conversation_history = self.conversation_history[-40:]
 
     def reset(self):
         self.conversation_history = []

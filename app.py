@@ -404,6 +404,7 @@ def api_assess():
         risk_category=result['risk_category'],
         premium_multiplier=result['premium_multiplier'],
         claim_probability=result['claim_probability'],
+        confidence=result.get('confidence', 85.0),
         recommendations_json=json.dumps(result['recommendations']),
     )
     try:
@@ -443,6 +444,35 @@ def api_chat():
 def api_chat_reset():
     chatbot.reset()
     return jsonify({'status': 'ok'})
+
+
+@app.route('/api/chat/stream', methods=['POST'])
+@csrf.exempt
+@login_required
+@limiter.limit('60 per minute')
+def api_chat_stream():
+    data = request.get_json(silent=True)
+    if not data:
+        return jsonify({'error': 'Invalid JSON'}), 400
+    message = str(data.get('message', '')).strip()
+    if not message:
+        return jsonify({'error': 'Empty message'}), 400
+    if len(message) > 2000:
+        return jsonify({'error': 'Message too long (max 2000 characters)'}), 400
+
+    def generate():
+        try:
+            for chunk in chatbot.stream_chat(message):
+                yield f"data: {json.dumps({'delta': chunk})}\n\n"
+        except Exception as e:
+            yield f"data: {json.dumps({'error': str(e)})}\n\n"
+        yield "data: [DONE]\n\n"
+
+    return Response(
+        generate(),
+        mimetype='text/event-stream',
+        headers={'Cache-Control': 'no-cache', 'X-Accel-Buffering': 'no'},
+    )
 
 
 @app.route('/api/model-metrics')
@@ -722,8 +752,7 @@ def download_pdf(assessment_id):
         ['Gender', r.gender.capitalize(),          'Marital Status', r.marital_status.capitalize()],
         ['Credit Score', str(r.credit_score),      'Annual Mileage', f'{r.annual_mileage:,} miles'],
     ]
-    dt = Table(driver_rows, colWidths=[3.5*cm, 5*cm, 3.5*cm, 5*cm])
-    dt.setStyle(TableStyle([
+    detail_style = TableStyle([
         ('FONTNAME',    (0,0), (0,-1), 'Helvetica-Bold'),
         ('FONTNAME',    (2,0), (2,-1), 'Helvetica-Bold'),
         ('TEXTCOLOR',   (0,0), (0,-1), colors.HexColor('#64748b')),
@@ -735,7 +764,9 @@ def download_pdf(assessment_id):
         ('LEFTPADDING', (0,0), (-1,-1), 8),
         ('BOX',         (0,0), (-1,-1), 0.5, colors.HexColor('#e2e8f0')),
         ('INNERGRID',   (0,0), (-1,-1), 0.3, colors.HexColor('#e2e8f0')),
-    ]))
+    ])
+    dt = Table(driver_rows, colWidths=[3.5*cm, 5*cm, 3.5*cm, 5*cm])
+    dt.setStyle(detail_style)
     story.append(dt)
     story.append(Spacer(1, 0.3*cm))
 
@@ -746,7 +777,7 @@ def download_pdf(assessment_id):
         ['Prev. Accidents', str(r.previous_accidents), 'Traffic Violations', str(r.traffic_violations)],
     ]
     vt = Table(veh_rows, colWidths=[3.5*cm, 5*cm, 3.5*cm, 5*cm])
-    vt.setStyle(dt.getStyle())
+    vt.setStyle(detail_style)
     story.append(vt)
     story.append(Spacer(1, 0.3*cm))
 

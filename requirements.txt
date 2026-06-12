@@ -9,3 +9,5 @@ flask-login==0.6.3
 flask-wtf==1.2.1
 flask-limiter==3.5.0
 python-dotenv==1.0.0
+xgboost>=2.0.0
+anthropic>=0.40.0

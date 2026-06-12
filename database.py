@@ -30,6 +30,7 @@ class Assessment(db.Model):
     risk_category = db.Column(db.String(20), index=True)
     premium_multiplier = db.Column(db.Float)
     claim_probability = db.Column(db.Float)
+    confidence = db.Column(db.Float, default=85.0)
     recommendations_json = db.Column(db.Text)
 
     # Admin fields
@@ -56,6 +57,7 @@ class Assessment(db.Model):
             'risk_category': self.risk_category,
             'premium_multiplier': self.premium_multiplier,
             'claim_probability': self.claim_probability,
+            'confidence': self.confidence or 85.0,
             'recommendations': json.loads(self.recommendations_json or '[]'),
             'status': self.status or 'Pending',
             'notes': self.notes or '',
