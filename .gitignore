@@ -11,7 +11,6 @@ build/
 .venv/
 venv/
 .claude/
-*.docx
 data/
 model/risk_model.pkl
 model/model_metrics.pkl
