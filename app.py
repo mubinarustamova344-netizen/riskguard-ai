@@ -31,29 +31,36 @@ load_dotenv()
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 
 # ── Logging ────────────────────────────────────────────────────────────────────
-_log_handler = RotatingFileHandler(
-    os.path.join(BASE_DIR, 'app.log'), maxBytes=1_000_000, backupCount=3
-)
-_log_handler.setFormatter(logging.Formatter('%(asctime)s %(levelname)s: %(message)s'))
+_fmt = logging.Formatter('%(asctime)s %(levelname)s: %(message)s')
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
-logger.addHandler(_log_handler)
+_stdout_handler = logging.StreamHandler()
+_stdout_handler.setFormatter(_fmt)
+logger.addHandler(_stdout_handler)
+try:
+    _file_handler = RotatingFileHandler(
+        os.path.join(BASE_DIR, 'app.log'), maxBytes=1_000_000, backupCount=3
+    )
+    _file_handler.setFormatter(_fmt)
+    logger.addHandler(_file_handler)
+except OSError:
+    pass
 
 # ── App ────────────────────────────────────────────────────────────────────────
 app = Flask(__name__)
 app.config.update(
     SQLALCHEMY_DATABASE_URI=f"sqlite:///{os.path.join(BASE_DIR, 'assessments.db')}",
     SQLALCHEMY_TRACK_MODIFICATIONS=False,
-    SECRET_KEY=os.environ['SECRET_KEY'],
-    ADMIN_USERNAME=os.environ['ADMIN_USERNAME'],
-    ADMIN_PASSWORD_HASH=generate_password_hash(os.environ['ADMIN_PASSWORD']),
+    SECRET_KEY=os.environ.get('SECRET_KEY', 'change-me-in-production'),
+    ADMIN_USERNAME=os.environ.get('ADMIN_USERNAME', 'admin'),
+    ADMIN_PASSWORD_HASH=generate_password_hash(os.environ.get('ADMIN_PASSWORD', 'admin123')),
     SESSION_COOKIE_HTTPONLY=True,
     SESSION_COOKIE_SAMESITE='Lax',
     PERMANENT_SESSION_LIFETIME=timedelta(hours=8),
     WTF_CSRF_TIME_LIMIT=3600,
 )
 
-CORS(app, resources={r"/api/*": {"origins": ["http://127.0.0.1", "http://localhost"]}})
+CORS(app, resources={r"/api/*": {"origins": "*"}})
 csrf = CSRFProtect(app)
 
 
