@@ -64,11 +64,19 @@ CORS(app, resources={r"/api/*": {"origins": "*"}})
 csrf = CSRFProtect(app)
 
 
+GITHUB_URL = "https://github.com/mubinarustamova344-netizen/riskguard-ai"
+LIVE_URL   = "https://riskguard-ai.onrender.com"
+
 @app.context_processor
 def inject_lang():
     from flask import session as _s
     lang = get_lang(_s)
-    return dict(t=TRANSLATIONS.get(lang, TRANSLATIONS['en']), lang=lang)
+    return dict(
+        t=TRANSLATIONS.get(lang, TRANSLATIONS['en']),
+        lang=lang,
+        GITHUB_URL=GITHUB_URL,
+        LIVE_URL=LIVE_URL,
+    )
 
 # ── Auth ───────────────────────────────────────────────────────────────────────
 login_manager = LoginManager(app)
@@ -289,7 +297,7 @@ def about():
 @app.route('/report/<int:assessment_id>')
 @login_required
 def report(assessment_id):
-    record = Assessment.query.get_or_404(assessment_id)
+    record = db.get_or_404(Assessment, assessment_id)
     data = record.to_dict()
 
     # Benchmark: % of drivers with higher risk score
@@ -640,7 +648,7 @@ def api_score_distribution():
 @csrf.exempt
 @login_required
 def api_delete_assessment(assessment_id):
-    record = Assessment.query.get_or_404(assessment_id)
+    record = db.get_or_404(Assessment, assessment_id)
     db.session.delete(record)
     db.session.commit()
     logger.info('Assessment #%d deleted by admin', assessment_id)
@@ -651,7 +659,7 @@ def api_delete_assessment(assessment_id):
 @csrf.exempt
 @login_required
 def api_update_status(assessment_id):
-    record = Assessment.query.get_or_404(assessment_id)
+    record = db.get_or_404(Assessment, assessment_id)
     data = request.get_json(silent=True) or {}
     new_status = data.get('status', '')
     if new_status not in ('Pending', 'Reviewed', 'Approved'):
@@ -665,7 +673,7 @@ def api_update_status(assessment_id):
 @csrf.exempt
 @login_required
 def api_update_notes(assessment_id):
-    record = Assessment.query.get_or_404(assessment_id)
+    record = db.get_or_404(Assessment, assessment_id)
     data = request.get_json(silent=True) or {}
     record.notes = str(data.get('notes', ''))[:1000]
     db.session.commit()
@@ -689,7 +697,7 @@ def api_bulk_delete():
 @app.route('/report/<int:assessment_id>/pdf')
 @login_required
 def download_pdf(assessment_id):
-    r = Assessment.query.get_or_404(assessment_id)
+    r = db.get_or_404(Assessment, assessment_id)
     buf = io.BytesIO()
 
     doc = SimpleDocTemplate(buf, pagesize=A4,
@@ -894,7 +902,7 @@ def api_batch_upload():
 @app.route('/certificate/<int:assessment_id>')
 @login_required
 def certificate(assessment_id):
-    record = Assessment.query.get_or_404(assessment_id)
+    record = db.get_or_404(Assessment, assessment_id)
     return render_template('certificate.html', a=record)
 
 
@@ -913,7 +921,7 @@ def send_email_report(assessment_id):
     import smtplib
     from email.mime.multipart import MIMEMultipart
     from email.mime.text import MIMEText
-    record = Assessment.query.get_or_404(assessment_id)
+    record = db.get_or_404(Assessment, assessment_id)
     data   = request.get_json(silent=True) or {}
     to_email = data.get('email', '').strip()
     if not to_email or '@' not in to_email:
