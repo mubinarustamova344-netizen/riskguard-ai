@@ -1,6 +1,6 @@
 __pycache__/
 *.pyc
-*.pkl
+# *.pkl  # model files are committed for deployment
 *.db
 *.csv
 .env
