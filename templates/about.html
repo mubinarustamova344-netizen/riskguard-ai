@@ -27,6 +27,12 @@
         <a href="/dashboard" class="btn btn-outline-light px-4">
           <i class="bi bi-bar-chart-line me-2"></i>View Analytics
         </a>
+        <a href="{{ LIVE_URL }}" target="_blank" rel="noopener" class="btn btn-outline-warning px-4">
+          <i class="bi bi-globe me-2"></i>Live Demo
+        </a>
+        <a href="{{ GITHUB_URL }}" target="_blank" rel="noopener" class="btn btn-outline-light px-4">
+          <i class="bi bi-github me-2"></i>GitHub
+        </a>
       </div>
     </div>
     <!-- Decorative element -->
@@ -225,6 +231,40 @@
     </div>
   </div>
 
+  <!-- Project Links -->
+  <div class="row g-4 mb-5">
+    <div class="col-md-6">
+      <div class="card shadow-sm h-100 border-0" style="background:linear-gradient(135deg,rgba(37,99,235,.08),rgba(37,99,235,.03));border:1px solid rgba(37,99,235,.2)!important;">
+        <div class="card-body text-center p-4">
+          <i class="bi bi-github" style="font-size:2.5rem;color:#60a5fa;"></i>
+          <h5 class="fw-bold mt-3 mb-2">Source Code</h5>
+          <p class="text-muted small mb-3">Full open-source codebase — Flask backend, ML pipeline, templates</p>
+          <a href="{{ GITHUB_URL }}" target="_blank" rel="noopener" class="btn btn-primary fw-bold px-4">
+            <i class="bi bi-github me-2"></i>View on GitHub
+          </a>
+          <div class="mt-2">
+            <code style="font-size:.72rem;color:rgba(255,255,255,.4);">{{ GITHUB_URL }}</code>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="col-md-6">
+      <div class="card shadow-sm h-100 border-0" style="background:linear-gradient(135deg,rgba(255,159,10,.08),rgba(255,159,10,.03));border:1px solid rgba(255,159,10,.2)!important;">
+        <div class="card-body text-center p-4">
+          <i class="bi bi-globe" style="font-size:2.5rem;color:var(--accent);"></i>
+          <h5 class="fw-bold mt-3 mb-2">Live Deployment</h5>
+          <p class="text-muted small mb-3">Production version hosted on Cloudflare Pages — always online</p>
+          <a href="{{ LIVE_URL }}" target="_blank" rel="noopener" class="btn btn-warning fw-bold px-4">
+            <i class="bi bi-box-arrow-up-right me-2"></i>Open Live Demo
+          </a>
+          <div class="mt-2">
+            <code style="font-size:.72rem;color:rgba(255,255,255,.4);">{{ LIVE_URL }}</code>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
   <!-- CTA -->
   <div class="text-center py-4 rounded-4" style="background:linear-gradient(135deg,rgba(240,165,0,.08),rgba(59,130,246,.08));border:1px solid var(--border);">
     <h4 class="fw-bold mb-2">Ready to explore the system?</h4>
@@ -238,6 +278,9 @@
       </a>
       <a href="/chatbot" class="btn btn-outline-info px-4">
         <i class="bi bi-robot me-2"></i>AI Chatbot
+      </a>
+      <a href="{{ LIVE_URL }}" target="_blank" rel="noopener" class="btn btn-outline-warning px-4">
+        <i class="bi bi-globe me-2"></i>Live Demo
       </a>
     </div>
   </div>

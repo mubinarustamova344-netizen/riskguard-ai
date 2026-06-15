@@ -65,7 +65,7 @@ csrf = CSRFProtect(app)
 
 
 GITHUB_URL = "https://github.com/mubinarustamova344-netizen/riskguard-ai"
-LIVE_URL   = "https://riskguard-ai.onrender.com"
+LIVE_URL   = "https://riskguard-ai.onrender.com/demo"
 
 @app.context_processor
 def inject_lang():
@@ -216,6 +216,15 @@ def logout():
     logger.info('Logout from %s', request.remote_addr)
     logout_user()
     return redirect(url_for('login'))
+
+
+@app.route('/demo')
+def demo_login():
+    """Auto-login for defense/viva demonstration — no password needed."""
+    if not current_user.is_authenticated:
+        login_user(ADMIN_USER, remember=False)
+        logger.info('Demo auto-login from %s', request.remote_addr)
+    return redirect(url_for('index'))
 
 
 # ── Page routes ────────────────────────────────────────────────────────────────
