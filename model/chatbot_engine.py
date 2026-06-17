@@ -185,7 +185,7 @@ FAQ = [
     # ── RISK FACTORS ──────────────────────────────────────────────────────────
     {
         'id': 'risk_factors',
-        'keywords': ['risk factor','omil','ta\'sir','oshiradi','kamayadi','nima oshir','nima kamayt','what affect','influence','impact'],
+        'keywords': ['risk factor','factors increase','increase risk','what factors','which factors','omil','ta\'sir','oshiradi','kamayadi','nima oshir','nima kamayt','what affect','influence','impact'],
         'response': (
             "**Xavf Omillari va Ta'siri:**\n\n"
             "⬆️ **Xavfni OSHIRUVCHI omillar:**\n"
@@ -711,7 +711,7 @@ class RiskChatbot:
         return self._use_ai
 
     def _find_faq(self, message: str) -> str | None:
-        """Two-pass FAQ lookup: regex patterns then substring keywords."""
+        """Two-pass FAQ lookup: regex patterns then word-boundary keywords."""
         msg = message.lower().strip()
 
         # Pass 1: regex
@@ -720,10 +720,10 @@ class RiskChatbot:
                 if re.search(pattern, msg, re.IGNORECASE):
                     return faq['response']
 
-        # Pass 2: substring keywords
+        # Pass 2: word-boundary keyword match (prevents "ha" matching "what")
         for faq in FAQ:
             for kw in faq.get('keywords', []):
-                if kw.lower() in msg:
+                if re.search(r'(?<!\w)' + re.escape(kw.lower()) + r'(?!\w)', msg):
                     return faq['response']
 
         return None

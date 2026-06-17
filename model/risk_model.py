@@ -409,10 +409,10 @@ def predict_risk(model, input_data: dict) -> dict:
     # Risk score derived from ML class probabilities (weighted by category midpoints)
     # This guarantees score and category are always consistent
     CATEGORY_CENTERS = {'Low': 15.0, 'Medium': 38.0, 'High': 63.0, 'Very High': 88.0}
-    risk_score = sum(
-        proba[i] * CATEGORY_CENTERS.get(classes[i], 50.0)
+    risk_score = float(sum(
+        float(proba[i]) * CATEGORY_CENTERS.get(classes[i], 50.0)
         for i in range(len(classes))
-    )
+    ))
     risk_score = round(min(max(risk_score, 0.0), 100.0), 1)
 
     # Derive category from score (always consistent)
@@ -430,7 +430,7 @@ def predict_risk(model, input_data: dict) -> dict:
 
     # Claim probability: probability of High or Very High risk
     high_idx = [i for i, c in enumerate(classes) if c in ('High', 'Very High')]
-    claim_prob = round(sum(proba[i] for i in high_idx), 3)
+    claim_prob = round(float(sum(proba[i] for i in high_idx)), 3)
     claim_prob = max(0.01, min(0.99, claim_prob))
 
     recommendations = _get_recommendations(risk_category, input_data)
@@ -444,7 +444,7 @@ def predict_risk(model, input_data: dict) -> dict:
         'premium_multiplier': premium_multiplier,
         'claim_probability': claim_prob,
         'confidence': confidence,
-        'class_probabilities': {c: round(p, 3) for c, p in zip(classes, proba)},
+        'class_probabilities': {c: round(float(p), 3) for c, p in zip(classes, proba)},
         'recommendations': recommendations,
         'factor_contributions': factor_contributions,
     }

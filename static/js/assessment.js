@@ -140,7 +140,14 @@ document.addEventListener('DOMContentLoaded', function() {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(payload)
     })
-    .then(function(resp) { return resp.json(); })
+    .then(function(resp) {
+      var ct = resp.headers.get('content-type') || '';
+      if (!ct.includes('application/json')) {
+        window.location.href = '/demo';
+        return Promise.reject(new Error('Session expired — logging in again…'));
+      }
+      return resp.json();
+    })
     .then(function(data) {
       if (data.error) {
         renderError(data.error);
